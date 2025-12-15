@@ -24,7 +24,7 @@ import { ALLOWED_NEIGHBORHOODS } from './constants';
 // Firebase Imports
 import { auth, db } from './services/firebase';
 import { onAuthStateChanged, signOut, sendPasswordResetEmail, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { ref, onValue, update, remove, get, set, query, orderByChild, equalTo, limitToFirst, startAfter } from 'firebase/database';
+import { ref, onValue, update, remove, get, set, query, orderByChild, equalTo, limitToFirst, startAfter, orderByKey } from 'firebase/database';
 
 const INITIAL_CONFIG: AppConfig = {
   appName: 'O Que Tem Perto? Águas Claras e Região',
@@ -264,21 +264,47 @@ export default function App() {
             dbQuery = query(usersRef, orderByChild('category'), equalTo(targetCat), startAfter(null, lastLoadedKey), limitToFirst(PAGE_SIZE));
          }
      }
-     // 3. Default: By Role (Pro or Business) - "Show All" fallback
+     // 3. Default: By Role (Pro or Business) OR Mixed (Show All)
      else {
-        const targetRole = request.searchType === 'mixed' ? 'pro' : request.searchType || 'pro'; // Fallback to pro if mixed/undefined
-        
-        if (isNewSearch) {
-           dbQuery = query(usersRef, orderByChild('role'), equalTo(targetRole), limitToFirst(PAGE_SIZE));
-        } else if (lastLoadedKey) {
-           dbQuery = query(usersRef, orderByChild('role'), equalTo(targetRole), startAfter(null, lastLoadedKey), limitToFirst(PAGE_SIZE));
+        if (request.searchType === 'mixed') {
+           // Se a busca for mista, trazemos tudo ordenado por chave e filtramos no front-end.
+           // Isso garante que PROs e BUSINESS apareçam sem precisar de um índice complexo.
+           if (isNewSearch) {
+              dbQuery = query(usersRef, orderByKey(), limitToFirst(PAGE_SIZE));
+           } else if (lastLoadedKey) {
+              dbQuery = query(usersRef, orderByKey(), startAfter(lastLoadedKey), limitToFirst(PAGE_SIZE));
+           }
+        } else {
+           // Busca específica por Role
+           const targetRole = request.searchType || 'pro';
+           if (isNewSearch) {
+              dbQuery = query(usersRef, orderByChild('role'), equalTo(targetRole), limitToFirst(PAGE_SIZE));
+           } else if (lastLoadedKey) {
+              dbQuery = query(usersRef, orderByChild('role'), equalTo(targetRole), startAfter(null, lastLoadedKey), limitToFirst(PAGE_SIZE));
+           }
         }
      }
 
      try {
         if (!dbQuery) throw new Error("Invalid query construction");
 
-        const snapshot = await get(dbQuery);
+        let snapshot;
+        
+        try {
+           // Tentativa principal: Consulta otimizada no banco de dados
+           snapshot = await get(dbQuery);
+        } catch (queryErr: any) {
+           // FALLBACK IMPORTANTE: Se o índice estiver faltando (erro comum), buscamos tudo e filtramos no front
+           // Isso previne a tela branca e garante que o app funcione enquanto os índices não são criados.
+           if (queryErr.message && queryErr.message.includes("Index not defined")) {
+              console.warn("⚠️ Índice ausente no Firebase. Ativando modo de compatibilidade (Client-side filtering).");
+              // Busca genérica segura (sem ordenação complexa)
+              const fallbackQuery = query(usersRef, orderByKey()); 
+              snapshot = await get(fallbackQuery);
+           } else {
+              throw queryErr;
+           }
+        }
         
         if (snapshot.exists()) {
            const data = snapshot.val();
@@ -299,12 +325,29 @@ export default function App() {
               isHighlighted: u.highlightExpiresAt ? new Date(u.highlightExpiresAt) > new Date() : false,
               // Internal usage for filtering
               role: u.role,
+              category: u.category // Important for fallback filtering
            }));
 
-           // Client-side filtering
+           // Client-side filtering to remove Admins/Clients and respect Mixed Search
            const filteredPros = newPros.filter(p => {
-              if (request.searchType === 'pro' && (p as any).role !== 'pro') return false;
-              if (request.searchType === 'business' && (p as any).role !== 'business') return false;
+              const r = (p as any).role;
+              // Nunca mostrar Admins ou Clientes na lista pública
+              if (r === 'admin' || r === 'master' || r === 'client') return false;
+
+              if (request.searchType === 'pro' && r !== 'pro') return false;
+              if (request.searchType === 'business' && r !== 'business') return false;
+              // Se for 'mixed', aceita tanto pro quanto business
+              
+              // --- FILTROS DE FALLBACK (Caso o DB não tenha filtrado por falta de índice) ---
+              if (request.neighborhood && p.neighborhood !== request.neighborhood) return false;
+
+              if (request.detectedCategory && request.detectedCategory !== 'Destaques Próximos' && request.detectedCategory !== 'Destaques') {
+                 // Verifica se a categoria bate (seja no campo category ou nas tags)
+                 const cat = (p as any).category || '';
+                 const tags = p.tags || [];
+                 if (cat !== request.detectedCategory && !tags.includes(request.detectedCategory)) return false;
+              }
+
               return true;
            });
 
@@ -313,13 +356,19 @@ export default function App() {
            
            if (uniquePros.length > 0) {
               setProfessionals(prev => isNewSearch ? uniquePros : [...prev, ...uniquePros]);
-              setLastLoadedKey(uniquePros[uniquePros.length - 1].id);
+              // Para paginação funcionar corretamente com orderByKey, usamos o ID do último item original (antes do filtro)
+              setLastLoadedKey(entries[entries.length - 1][0]);
            } else {
-              setHasMore(false);
+              if (entries.length > 0) {
+                  // Se baixamos dados mas o filtro removeu tudo, marcamos o último para continuar tentando
+                  setLastLoadedKey(entries[entries.length - 1][0]);
+              } else {
+                  setHasMore(false);
+              }
            }
            
-           if (uniquePros.length < PAGE_SIZE) {
-              setHasMore(false); // Less than page size means end of list
+           if (entries.length < PAGE_SIZE) {
+              setHasMore(false); // Less than page size means end of list from DB
            }
 
         } else {
@@ -371,7 +420,7 @@ export default function App() {
        description: `Busca ${coordinates ? 'por GPS' : 'textual'} em ${searchNeighborhood || 'Águas Claras'}`,
        location: "Campo Largo",
        urgency: "N/A",
-       searchType: searchTab,
+       searchType: searchTab, // Passa 'pro' ou 'business' dependendo da aba selecionada
        neighborhood: searchNeighborhood,
        onlyHighRated: searchHighRated,
        coordinates,
@@ -480,7 +529,7 @@ export default function App() {
   const handleShare = async () => {
     const shareData = {
       title: appConfig.appName,
-      text: `Eletricista, diarista, fotógrafo, lanches... Contrate todo tipo de serviço e encontre comércios na região de Águas Claras no app ${appConfig.appName}!`,
+      text: `Eletricista, diarista, fotógrafo, comércios locais... Encontre todo tipo de serviço e comércio na região de Águas Claras no app ${appConfig.appName}!`,
       url: window.location.href,
     };
 

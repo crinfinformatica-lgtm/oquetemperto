@@ -13,7 +13,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onClose }) => {
         
         <div className="bg-primary p-6 text-center text-white relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-white/10 opacity-50 transform rotate-45 scale-150"></div>
-          <h2 className="text-2xl font-bold relative z-10">Bem-vindo a Águas Claras!</h2>
+          <h2 className="text-2xl font-bold relative z-10">Bem-vindo ao App O Que Tem Perto?</h2>
           <p className="text-blue-100 relative z-10 text-sm mt-1">Seu guia de serviços e comércios locais.</p>
         </div>
 
