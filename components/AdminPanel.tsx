@@ -1241,6 +1241,12 @@ Gerado em: ${new Date().toLocaleString()} por ${currentUser.email}
                          <label className="block text-sm font-bold text-gray-700 mb-1">Nome do Aplicativo</label>
                          <input type="text" value={editingConfig.appName} onChange={(e) => setEditingConfig({...editingConfig, appName: e.target.value})} className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
                       </div>
+
+                      {/* New Field */}
+                      <div>
+                         <label className="block text-sm font-bold text-gray-700 mb-1">Subtítulo do Cabeçalho</label>
+                         <input type="text" value={editingConfig.headerSubtitle || ''} onChange={(e) => setEditingConfig({...editingConfig, headerSubtitle: e.target.value})} className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Ex: Águas Claras e Região" />
+                      </div>
                       
                       {/* NOVOS CAMPOS DE SUPORTE E PIX */}
                       <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">

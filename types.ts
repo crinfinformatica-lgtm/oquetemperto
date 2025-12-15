@@ -93,6 +93,7 @@ export interface User {
 
 export interface AppConfig {
   appName: string;
+  headerSubtitle?: string; // Novo campo para o texto abaixo do nome
   primaryColor: string;
   accentColor: string;
   tertiaryColor: string; // New Dark Green Color

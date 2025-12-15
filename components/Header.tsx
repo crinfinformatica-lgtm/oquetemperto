@@ -39,7 +39,7 @@ const Header: React.FC<HeaderProps> = ({
               {config.appName}
             </span>
             <span className="text-[9px] md:text-[10px] font-semibold uppercase tracking-wide text-blue-100/80">
-              Águas Claras e Região
+              {config.headerSubtitle || 'Águas Claras e Região'}
             </span>
           </div>
         </div>

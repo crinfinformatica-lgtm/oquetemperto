@@ -27,7 +27,8 @@ import { onAuthStateChanged, signOut, sendPasswordResetEmail, signInWithEmailAnd
 import { ref, onValue, update, remove, get, set, query, orderByChild, equalTo, limitToFirst, startAfter, orderByKey } from 'firebase/database';
 
 const INITIAL_CONFIG: AppConfig = {
-  appName: 'O Que Tem Perto? Águas Claras e Região',
+  appName: 'O Que Tem Perto?',
+  headerSubtitle: 'Águas Claras e Região',
   primaryColor: '#0047AB', // Campo Largo Blue
   accentColor: '#DC143C',   // Campo Largo Red
   tertiaryColor: '#166534',  // Dark Green (Verde Escuro)
