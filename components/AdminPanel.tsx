@@ -83,10 +83,38 @@ const UserTable = ({
     };
 
     const handleChangeRole = (user: User, newRole: UserRole) => {
-      if (currentUser.role !== 'master') return;
-      if (confirm(`Alterar papel de ${user.name} para ${newRole}?`)) {
+      // Regras de segurança:
+      // 1. Apenas Master pode criar/editar Admins ou outros Masters.
+      // 2. Admins podem alterar papéis de Clients, Pros e Businesses.
+      
+      const isSensitiveRole = (r: string) => r === 'admin' || r === 'master';
+      
+      if (currentUser.role !== 'master' && (isSensitiveRole(user.role) || isSensitiveRole(newRole))) {
+         alert("Você não tem permissão para alterar níveis administrativos (Admin/Master).");
+         return;
+      }
+
+      const roleLabels: Record<string, string> = {
+         client: 'Cliente',
+         pro: 'Prestador de Serviço',
+         business: 'Comércio Local',
+         admin: 'Administrador'
+      };
+
+      if (confirm(`CORRIGIR CADASTRO:\n\nAlterar o tipo de conta de "${user.name}" para ${roleLabels[newRole].toUpperCase()}?\n\nIsso mudará as permissões e a exibição no aplicativo.`)) {
          onUpdateUser({ ...user, role: newRole });
       }
+    };
+
+    const getRoleLabel = (r: string) => {
+       switch(r) {
+          case 'client': return 'Cliente';
+          case 'pro': return 'Prestador';
+          case 'business': return 'Comércio';
+          case 'admin': return 'Admin';
+          case 'master': return 'Master';
+          default: return r;
+       }
     };
 
     return (
@@ -109,7 +137,7 @@ const UserTable = ({
                 <th className="p-4">Nome/Email</th>
                 <th className="p-4">Status</th>
                 {(role === 'pro' || role === 'business') && <th className="p-4">Destaque</th>}
-                <th className="p-4">Papel</th>
+                <th className="p-4">Tipo de Conta</th>
                 <th className="p-4">Ações</th>
               </tr>
             </thead>
@@ -162,20 +190,32 @@ const UserTable = ({
                       </td>
                     )}
                     <td className="p-4">
-                       {currentUser.role === 'master' && user.role !== 'master' ? (
+                       {/* Lógica: Master pode mudar tudo. Admin pode mudar tudo EXCETO Master e outros Admins */}
+                       {(currentUser.role === 'master' || (currentUser.role === 'admin' && user.role !== 'master' && user.role !== 'admin')) ? (
                           <div className="relative group/role">
-                             <button className="text-[10px] font-bold uppercase bg-gray-100 px-2 py-1 rounded flex items-center gap-1 hover:bg-gray-200">
-                               {user.role} <ChevronDown size={10} />
+                             <button 
+                                className="text-[10px] font-bold uppercase bg-white border border-gray-300 px-2 py-1 rounded flex items-center gap-1 hover:bg-gray-50 hover:border-blue-400 transition-colors shadow-sm"
+                                title="Clique para corrigir o tipo de cadastro"
+                             >
+                               {getRoleLabel(user.role)} <ChevronDown size={10} />
                              </button>
-                             <div className="absolute left-0 top-full mt-1 bg-white border shadow-xl rounded-lg z-20 hidden group-hover/role:block min-w-[120px]">
-                                <button onClick={() => handleChangeRole(user, 'client')} className="block w-full text-left px-4 py-2 text-xs hover:bg-gray-50">Cliente</button>
-                                <button onClick={() => handleChangeRole(user, 'pro')} className="block w-full text-left px-4 py-2 text-xs hover:bg-gray-50">Prestador</button>
-                                <button onClick={() => handleChangeRole(user, 'business')} className="block w-full text-left px-4 py-2 text-xs hover:bg-gray-50">Comércio</button>
-                                <button onClick={() => handleChangeRole(user, 'admin')} className="block w-full text-left px-4 py-2 text-xs font-bold text-purple-600 hover:bg-gray-50">Admin</button>
+                             <div className="absolute left-0 top-full mt-1 bg-white border shadow-xl rounded-lg z-50 hidden group-hover/role:block min-w-[150px]">
+                                <div className="p-1">
+                                    <p className="text-[9px] text-gray-400 px-2 py-1 uppercase font-bold tracking-wider">Alterar para:</p>
+                                    <button onClick={() => handleChangeRole(user, 'client')} className="block w-full text-left px-3 py-2 text-xs hover:bg-blue-50 text-gray-700 rounded flex items-center gap-2"><Users size={12} className="text-blue-500"/> Cliente</button>
+                                    <button onClick={() => handleChangeRole(user, 'pro')} className="block w-full text-left px-3 py-2 text-xs hover:bg-blue-50 text-gray-700 rounded flex items-center gap-2"><Briefcase size={12} className="text-green-600"/> Prestador</button>
+                                    <button onClick={() => handleChangeRole(user, 'business')} className="block w-full text-left px-3 py-2 text-xs hover:bg-blue-50 text-gray-700 rounded flex items-center gap-2"><Store size={12} className="text-purple-600"/> Comércio</button>
+                                    {currentUser.role === 'master' && (
+                                        <>
+                                            <div className="border-t my-1"></div>
+                                            <button onClick={() => handleChangeRole(user, 'admin')} className="block w-full text-left px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded flex items-center gap-2"><Shield size={12}/> Admin</button>
+                                        </>
+                                    )}
+                                </div>
                              </div>
                           </div>
                        ) : (
-                          <span className="text-[10px] font-bold uppercase text-gray-500">{user.role}</span>
+                          <span className="text-[10px] font-bold uppercase text-gray-500">{getRoleLabel(user.role)}</span>
                        )}
                     </td>
                     <td className="p-4">

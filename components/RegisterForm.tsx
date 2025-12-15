@@ -288,7 +288,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
     e.preventDefault();
     setError('');
 
-    if (!cepVerified) {
+    // Validação de CEP apenas para Prestadores e Comércios
+    if (type !== 'client' && !cepVerified) {
       setError("Por favor, valide um CEP de Campo Largo antes de continuar.");
       return;
     }
@@ -324,6 +325,16 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
        finalCategory = `${finalCategory} - ${formData.customCategory}`;
     }
 
+    // Adjust address based on user type logic
+    let finalAddress = formData.address;
+    if (type === 'client') {
+       // For clients, simple concatenation of street/number is enough as they enter it manually
+       if (formData.number) finalAddress += `, ${formData.number}`;
+    } else {
+       // For pros/business (CEP based), formData.address is just the street from API
+       finalAddress = `${formData.address}, ${formData.number}`;
+    }
+
     try {
       // 1. Create User in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
@@ -347,8 +358,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
         rg: formData.rg,
         cnpj: formData.cnpj,
 
-        zipCode: formData.cep,
-        address: `${formData.address}, ${formData.number}`,
+        zipCode: type === 'client' ? '00000-000' : formData.cep, // Dummy CEP for manual clients
+        address: finalAddress,
         neighborhood: formData.neighborhood,
         avatarUrl: formData.avatarUrl,
         coverUrl: formData.coverUrl,
@@ -713,91 +724,135 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
                 {/* Location Lock */}
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                   <label className="block text-sm font-bold text-blue-800 mb-2 flex items-center">
-                    <MapPin size={16} className="mr-1"/> Localização (Seu Endereço)
+                    <MapPin size={16} className="mr-1"/> Localização
                   </label>
-                  <div className="flex gap-2 mb-2">
-                    <input 
-                      type="text" 
-                      placeholder="CEP (ex: 83601-000)"
-                      value={formData.cep}
-                      onChange={e => setFormData({...formData, cep: e.target.value})}
-                      onBlur={handleCepBlur}
-                      maxLength={9}
-                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`} 
-                    />
-                    {cepLoading && <div className="flex items-center text-gray-500"><Loader2 className="animate-spin"/></div>}
-                  </div>
-                  
-                  {error && <p className="text-xs text-red-600 font-bold mb-2 flex items-center"><AlertCircle size={12} className="mr-1"/> {error}</p>}
-                  
-                  {cepVerified && (
-                     <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                        <div className="text-sm text-gray-600 bg-white p-2 rounded border border-gray-100">
-                           <p className="font-bold text-green-700 text-xs flex items-center mb-1"><CheckCircle size={12} className="mr-1"/> Localização: Campo Largo</p>
-                           <p className="text-xs">{formData.address}</p>
-                        </div>
-                        
+
+                  {type === 'client' ? (
+                     <div className="space-y-3">
+                        {/* Fixed City */}
                         <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Selecione o bairro de sua residência *</label>
-                          {!isCustomNeighborhood ? (
-                            <select 
-                               value={ALLOWED_NEIGHBORHOODS.includes(formData.neighborhood) ? formData.neighborhood : ''}
-                               onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (val === 'custom') {
-                                    setIsCustomNeighborhood(true);
-                                    setFormData({...formData, neighborhood: ''});
-                                  } else {
-                                    setFormData({...formData, neighborhood: val});
-                                  }
-                               }}
-                               className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary outline-none bg-white"
-                               required
-                            >
-                              <option value="">Selecione na lista...</option>
-                              {ALLOWED_NEIGHBORHOODS.map(bairro => (
-                                <option key={bairro} value={bairro}>{bairro}</option>
-                              ))}
-                              <option value="custom" className="font-bold text-blue-600">+ Outro (Digitar nome do bairro)</option>
-                            </select>
-                          ) : (
-                            <div className="flex gap-2 animate-in fade-in slide-in-from-left-2">
-                               <input 
-                                 type="text" 
-                                 placeholder="Digite o nome do seu bairro" 
-                                 value={formData.neighborhood}
-                                 onChange={(e) => setFormData({...formData, neighborhood: e.target.value})}
-                                 className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary outline-none"
-                                 autoFocus
-                               />
-                               <button 
-                                 type="button" 
-                                 onClick={() => { setIsCustomNeighborhood(false); setFormData({...formData, neighborhood: ''}); }}
-                                 className="p-2 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded"
-                                 title="Voltar para lista"
-                               >
-                                 <X size={20} />
-                               </button>
-                            </div>
-                          )}
-                          {!isCustomNeighborhood && (
-                            <p className="text-left text-[10px] text-gray-500 mt-1">
-                              * Se não encontrar na lista, selecione "Outro" no final.
-                            </p>
-                          )}
+                           <label className="block text-xs font-medium text-gray-600 mb-1">Cidade / Estado</label>
+                           <input
+                              type="text"
+                              value="Campo Largo - PR"
+                              disabled
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-200 text-gray-600 cursor-not-allowed"
+                           />
                         </div>
 
+                        {/* Free Text Neighborhood */}
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Número</label>
-                          <input 
-                            type="text" 
-                            required
-                            value={formData.number}
-                            onChange={e => setFormData({...formData, number: e.target.value})}
-                            className="w-full px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary outline-none text-sm" 
-                          />
+                           <label className="block text-xs font-medium text-gray-600 mb-1">Bairro *</label>
+                           <input
+                              type="text"
+                              required
+                              placeholder="Digite o nome do seu bairro"
+                              value={formData.neighborhood}
+                              onChange={e => setFormData({...formData, neighborhood: e.target.value})}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                           />
+                        </div>
+
+                        {/* Address Manual Input */}
+                        <div>
+                           <label className="block text-xs font-medium text-gray-600 mb-1">Endereço (Rua e Número)</label>
+                           <input
+                              type="text"
+                              required
+                              placeholder="Ex: Rua XV de Novembro, 100"
+                              value={formData.address}
+                              onChange={e => setFormData({...formData, address: e.target.value})}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                           />
                         </div>
                      </div>
+                  ) : (
+                     <>
+                        <div className="flex gap-2 mb-2">
+                           <input 
+                              type="text" 
+                              placeholder="CEP (ex: 83601-000)"
+                              value={formData.cep}
+                              onChange={e => setFormData({...formData, cep: e.target.value})}
+                              onBlur={handleCepBlur}
+                              maxLength={9}
+                              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 outline-none ${error ? 'border-red-500 bg-red-50' : 'border-gray-300'}`} 
+                           />
+                           {cepLoading && <div className="flex items-center text-gray-500"><Loader2 className="animate-spin"/></div>}
+                        </div>
+                        
+                        {error && <p className="text-xs text-red-600 font-bold mb-2 flex items-center"><AlertCircle size={12} className="mr-1"/> {error}</p>}
+                        
+                        {cepVerified && (
+                           <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                              <div className="text-sm text-gray-600 bg-white p-2 rounded border border-gray-100">
+                                 <p className="font-bold text-green-700 text-xs flex items-center mb-1"><CheckCircle size={12} className="mr-1"/> Localização: Campo Largo</p>
+                                 <p className="text-xs">{formData.address}</p>
+                              </div>
+                              
+                              <div>
+                                 <label className="block text-xs font-bold text-gray-600 mb-1">Selecione o bairro de sua residência *</label>
+                                 {!isCustomNeighborhood ? (
+                                 <select 
+                                       value={ALLOWED_NEIGHBORHOODS.includes(formData.neighborhood) ? formData.neighborhood : ''}
+                                       onChange={(e) => {
+                                          const val = e.target.value;
+                                          if (val === 'custom') {
+                                             setIsCustomNeighborhood(true);
+                                             setFormData({...formData, neighborhood: ''});
+                                          } else {
+                                             setFormData({...formData, neighborhood: val});
+                                          }
+                                       }}
+                                       className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary outline-none bg-white"
+                                       required
+                                 >
+                                    <option value="">Selecione na lista...</option>
+                                    {ALLOWED_NEIGHBORHOODS.map(bairro => (
+                                       <option key={bairro} value={bairro}>{bairro}</option>
+                                    ))}
+                                    <option value="custom" className="font-bold text-blue-600">+ Outro (Digitar nome do bairro)</option>
+                                 </select>
+                                 ) : (
+                                 <div className="flex gap-2 animate-in fade-in slide-in-from-left-2">
+                                       <input 
+                                          type="text" 
+                                          placeholder="Digite o nome do seu bairro" 
+                                          value={formData.neighborhood}
+                                          onChange={(e) => setFormData({...formData, neighborhood: e.target.value})}
+                                          className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-primary outline-none"
+                                          autoFocus
+                                       />
+                                       <button 
+                                          type="button" 
+                                          onClick={() => { setIsCustomNeighborhood(false); setFormData({...formData, neighborhood: ''}); }}
+                                          className="p-2 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded"
+                                          title="Voltar para lista"
+                                       >
+                                          <X size={20} />
+                                       </button>
+                                 </div>
+                                 )}
+                                 {!isCustomNeighborhood && (
+                                 <p className="text-left text-[10px] text-gray-500 mt-1">
+                                    * Se não encontrar na lista, selecione "Outro" no final.
+                                 </p>
+                                 )}
+                              </div>
+
+                              <div>
+                                 <label className="block text-xs font-medium text-gray-600 mb-1">Número</label>
+                                 <input 
+                                 type="text" 
+                                 required
+                                 value={formData.number}
+                                 onChange={e => setFormData({...formData, number: e.target.value})}
+                                 className="w-full px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary outline-none text-sm" 
+                                 />
+                              </div>
+                           </div>
+                        )}
+                     </>
                   )}
                 </div>
 
@@ -855,10 +910,10 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
 
               <button 
                 type="submit"
-                disabled={loading || !cepVerified}
+                disabled={loading || (type !== 'client' && !cepVerified)}
                 className={`w-full text-white font-bold py-3 rounded-lg mt-4 shadow-md transition-all flex items-center justify-center gap-2
                   ${config.color === 'bg-accent' ? 'bg-accent hover:bg-yellow-500 text-gray-900' : config.color === 'bg-tertiary' ? 'bg-tertiary hover:brightness-90' : config.color + ' hover:brightness-90'}
-                  ${(loading || !cepVerified) ? 'opacity-50 cursor-not-allowed' : ''}
+                  ${(loading || (type !== 'client' && !cepVerified)) ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
               >
                 {loading ? <Loader2 className="animate-spin" /> : 'Finalizar Cadastro'}
