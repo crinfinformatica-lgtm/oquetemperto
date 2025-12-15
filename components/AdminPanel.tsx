@@ -496,6 +496,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   
   // Highlight Modal State
   const [highlightModalUser, setHighlightModalUser] = useState<User | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [showCreateUser, setShowCreateUser] = useState(false);
@@ -510,6 +511,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
      description: '',
      avatarUrl: ''
   });
+
+  // Sync state when props change (Important for when data loads)
+  useEffect(() => {
+    setEditingConfig(appConfig);
+  }, [appConfig]);
 
   // --- ADMIN PRIVILEGED FETCH ---
   // Since the main App.tsx hides clients, the Admin Panel must fetch them independently.
@@ -567,6 +573,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setActiveTab(tab);
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSaveConfig = async () => {
+    try {
+      // 1. Sanitize the object (Remove undefined, replace with defaults)
+      const cleanConfig = JSON.parse(JSON.stringify(editingConfig));
+      
+      // Ensure specific optional fields are strings (not undefined)
+      // Use logical OR || to default to empty string if null/undefined/empty
+      cleanConfig.headerSubtitle = cleanConfig.headerSubtitle || '';
+      cleanConfig.pixKey = cleanConfig.pixKey || '';
+      cleanConfig.supportEmail = cleanConfig.supportEmail || '';
+      cleanConfig.logoUrl = cleanConfig.logoUrl || '';
+
+      // 2. Call Update
+      await onUpdateConfig(cleanConfig);
+      
+      // 3. Feedback (Success Modal)
+      setShowSuccessModal(true);
+      
+    } catch (error: any) {
+      console.error("Save Error:", error);
+      
+      // Specific feedback for Rules issues
+      if (error.code === 'PERMISSION_DENIED' || error.message.includes('PERMISSION_DENIED')) {
+         alert("⛔ ACESSO NEGADO (PERMISSION_DENIED)\n\nO banco de dados recusou a gravação.\n\nSOLUÇÃO:\n1. Acesse o Console do Firebase (firebase.google.com)\n2. Vá em 'Realtime Database' -> Aba 'Regras'\n3. Copie e cole as regras do arquivo 'database.rules.json' deste projeto.\n4. Publique as alterações.");
+      } else {
+         alert("❌ Erro ao salvar configurações: " + error.message);
+      }
+    }
   };
 
   const canDelete = (targetUser: User) => {
@@ -849,11 +885,16 @@ Gerado em: ${new Date().toLocaleString()} por ${currentUser.email}
      link.click();
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // FIX: Converte a imagem para Base64 antes de salvar, evitando URL.createObjectURL (blob) que não persiste
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const url = URL.createObjectURL(file);
-      setEditingConfig(prev => ({ ...prev, logoUrl: url }));
+      try {
+        const base64 = await compressImage(e.target.files[0]);
+        setEditingConfig(prev => ({ ...prev, logoUrl: base64 }));
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao processar imagem da logo");
+      }
     }
   };
 
@@ -867,6 +908,25 @@ Gerado em: ${new Date().toLocaleString()} por ${currentUser.email}
         className="hidden" 
       />
       
+      {/* --- SUCCESS MODAL --- */}
+      {showSuccessModal && (
+         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white p-8 rounded-2xl shadow-2xl flex flex-col items-center text-center transform scale-100 animate-in zoom-in-95 duration-200">
+               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4 text-green-600 animate-bounce">
+                  <CheckCircle size={40} strokeWidth={3} />
+               </div>
+               <h3 className="text-2xl font-bold text-gray-800 mb-2">Aplicado com Sucesso!</h3>
+               <p className="text-gray-500 mb-6">As configurações foram salvas e já estão visíveis no app.</p>
+               <button 
+                  onClick={() => setShowSuccessModal(false)} 
+                  className="bg-green-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl"
+               >
+                  Entendi
+               </button>
+            </div>
+         </div>
+      )}
+
       {/* --- HIGHLIGHT MODAL (Added to fix the lightning bolt issue) --- */}
       {highlightModalUser && (
          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 animate-in fade-in backdrop-blur-sm">
@@ -1316,7 +1376,7 @@ Gerado em: ${new Date().toLocaleString()} por ${currentUser.email}
                 </div>
 
                 <div className="mt-8 pt-6 border-t flex justify-end">
-                   <button onClick={() => onUpdateConfig(editingConfig)} className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-bold shadow-md flex items-center gap-2">
+                   <button onClick={handleSaveConfig} className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-bold shadow-md flex items-center gap-2">
                       <Save size={20} /> Salvar e Aplicar
                    </button>
                 </div>
