@@ -3,11 +3,13 @@ import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Carrega variáveis de ambiente (do arquivo .env local ou do sistema/Vercel)
+  // Carrega variáveis de ambiente, substituindo process.cwd() por '.' para evitar erros de tipo
   const env = loadEnv(mode, '.', '');
 
   return {
     plugins: [react()],
+    // Define explicitamente o root para evitar erros de 'entry module not found'
+    root: '.',
     build: {
       outDir: 'dist',
     },
