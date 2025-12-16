@@ -1,3 +1,4 @@
+
 {
   "name": "o-que-tem-perto",
   "private": true,
@@ -24,7 +25,8 @@
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
     "typescript": "^5.4.5",
-    "vite": "^5.2.11"
+    "vite": "^5.2.11",
+    "vite-plugin-pwa": "^0.20.0"
   },
   "engines": {
     "node": ">=18.0.0"
