@@ -2,7 +2,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, Auth } from "firebase/auth";
 import { getDatabase, Database } from "firebase/database";
-import { getStorage, FirebaseStorage } from "firebase/storage";
 
 // --- CONFIGURAÇÃO DO FIREBASE (MANUAL) ---
 // Cole as chaves do seu projeto Firebase abaixo, dentro das aspas.
@@ -19,7 +18,6 @@ export const firebaseConfig = {
 let app;
 let auth: Auth;
 let db: Database;
-let storage: FirebaseStorage;
 let googleProvider: GoogleAuthProvider;
 
 // Verificação para garantir que a configuração mínima necessária existe
@@ -43,7 +41,6 @@ if (!hasValidConfig) {
   
   // Objeto vazio sinaliza para o App.tsx que não há conexão real
   db = {} as unknown as Database;
-  storage = {} as unknown as FirebaseStorage;
   
 } else {
   try {
@@ -54,14 +51,12 @@ if (!hasValidConfig) {
      auth.languageCode = 'pt-BR'; 
      
      db = getDatabase(app);
-     storage = getStorage(app);
      googleProvider = new GoogleAuthProvider();
   } catch (error) {
      console.error("❌ Erro fatal ao inicializar Firebase:", error);
      console.warn("Verifique se todas as chaves (projectId, databaseURL) estão corretas em services/firebase.ts");
      // Fallback para evitar crash
      db = {} as unknown as Database;
-     storage = {} as unknown as FirebaseStorage;
      auth = { currentUser: null, _isMock: true } as unknown as Auth;
   }
 }
@@ -75,4 +70,4 @@ export const signInWithGoogle = () => {
     return signInWithPopup(auth, googleProvider);
 };
 
-export { app, auth, db, storage, googleProvider };
+export { app, auth, db, googleProvider };
