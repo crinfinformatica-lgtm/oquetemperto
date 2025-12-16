@@ -13,12 +13,13 @@ import AppLogo from './components/AppLogo';
 import PublicUtilities from './components/PublicUtilities';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import WelcomeModal from './components/WelcomeModal';
-import InstallBanner from './components/InstallBanner'; // Importado
-import { identifyServiceCategory } from './services/geminiService'; // Removed findMatchingProfessionals
+import InstallBanner from './components/InstallBanner'; 
+import InstallTutorial from './components/InstallTutorial'; // Importado
+import { identifyServiceCategory } from './services/geminiService';
 import { AppView, ServiceRequest, Professional, User, AppConfig, Review } from './types';
 import { 
   Search, Loader2, Briefcase, Store, ArrowLeft, User as UserIcon, 
-  Eye, EyeOff, MapPin, Star, X, Map, Share2, Moon, Sun, Copy, ShieldAlert, Mail, AlertTriangle, CheckCircle, Info 
+  Eye, EyeOff, MapPin, Star, X, Map, Share2, Moon, Sun, Copy, ShieldAlert, Mail, AlertTriangle, CheckCircle, Info, Download 
 } from 'lucide-react';
 import { ALLOWED_NEIGHBORHOODS } from './constants';
 
@@ -40,8 +41,9 @@ const INITIAL_CONFIG: AppConfig = {
 export default function App() {
   const [view, setView] = useState<AppView>('home');
   const [showAbout, setShowAbout] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false); // New: Privacy Modal Control
-  const [showWelcome, setShowWelcome] = useState(false); // New: Onboarding Modal Control
+  const [showPrivacy, setShowPrivacy] = useState(false); 
+  const [showWelcome, setShowWelcome] = useState(false); 
+  const [showInstallTutorial, setShowInstallTutorial] = useState(false); // Novo Estado
   const [darkMode, setDarkMode] = useState(false);
 
   // PWA Install State
@@ -71,13 +73,13 @@ export default function App() {
   const [locationStatus, setLocationStatus] = useState<string>('');
 
   // Admin / User State
-  const [users, setUsers] = useState<User[]>([]); // Contains ONLY public info (Pros/Businesses)
+  const [users, setUsers] = useState<User[]>([]); 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [dbConnectionError, setDbConnectionError] = useState<string | null>(null);
 
-  // Admin Login Form State (Legacy/Fallback)
+  // Admin Login Form State
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -88,12 +90,8 @@ export default function App() {
   // --- PWA INSTALL LISTENER ---
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
-      // Prevent Chrome 67 and earlier from automatically showing the prompt
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Update UI to notify the user they can add to home screen
-      // Only show if user hasn't dismissed it recently (simplified logic here)
       setShowInstallBanner(true);
     };
 
@@ -112,6 +110,9 @@ export default function App() {
         setShowInstallBanner(false);
       }
       setDeferredPrompt(null);
+    } else {
+       // Se não houver prompt automático (iOS ou já instalado/bloqueado), abre o tutorial
+       setShowInstallTutorial(true);
     }
   };
 
@@ -124,7 +125,6 @@ export default function App() {
 
   // 1. Listen for Auth Changes & Load User Profile
   useEffect(() => {
-    // Check if auth is mocked or invalid (missing API keys)
     if (!auth || (auth as any)._isMock) {
       console.warn("Auth is disabled or not configured. Skipping auth listener.");
       setLoadingAuth(false);
@@ -134,10 +134,8 @@ export default function App() {
     try {
       const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
-          // User is signed in, fetch their profile from Realtime Database
           const userRef = ref(db, `users/${firebaseUser.uid}`);
           
-          // --- ADMIN AUTO-PROMOTION & DB SEED LOGIC (NON-BLOCKING) ---
           if (firebaseUser.email === 'crinf.app@gmail.com') {
              (async () => {
                try {
@@ -165,7 +163,6 @@ export default function App() {
                }
              })();
           }
-          // ----------------------------------
   
           onValue(userRef, (snapshot) => {
             const data = snapshot.val();
@@ -173,7 +170,7 @@ export default function App() {
               setCurrentUser({ 
                 ...data, 
                 id: firebaseUser.uid,
-                favorites: data.favorites || [] // SAFEGUARD: Ensure favorites is always an array
+                favorites: data.favorites || [] 
               });
             } else {
               setCurrentUser({
@@ -189,7 +186,6 @@ export default function App() {
             setLoadingAuth(false);
           });
         } else {
-          // User is signed out
           setCurrentUser(null);
           setLoadingAuth(false);
         }
@@ -202,11 +198,8 @@ export default function App() {
     }
   }, []);
 
-  // Removed global fetch of users. Now we use performSearch with pagination.
-
   // 3. Listen for Config Changes
   useEffect(() => {
-    // Check if db is configured (if keys are missing, db is empty object)
     if (!db || Object.keys(db).length === 0) {
       setDbConnectionError("Abra o arquivo services/firebase.ts e cole suas chaves.");
       return;
@@ -266,7 +259,6 @@ export default function App() {
 
   // --- NEW: SCALABLE SEARCH FUNCTION WITH PAGINATION ---
   const performSearch = async (request: ServiceRequest, isNewSearch: boolean = true) => {
-     // Safety check for DB
      if (!db || Object.keys(db).length === 0) {
         alert("Erro: Banco de dados não conectado. Configure services/firebase.ts");
         return;
@@ -283,21 +275,15 @@ export default function App() {
      const usersRef = ref(db, 'users');
      let dbQuery;
 
-     // --- STRATEGY: Determine the best index to query ---
-     // Firebase only allows sorting/filtering by ONE key.
-     
-     // 1. By Neighborhood (High Priority Filter)
      if (request.neighborhood) {
-        // Query by Neighborhood
         if (isNewSearch) {
            dbQuery = query(usersRef, orderByChild('neighborhood'), equalTo(request.neighborhood), limitToFirst(PAGE_SIZE));
         } else if (lastLoadedKey) {
            dbQuery = query(usersRef, orderByChild('neighborhood'), equalTo(request.neighborhood), startAfter(null, lastLoadedKey), limitToFirst(PAGE_SIZE));
         }
      } 
-     // 2. By Category (Detected or Explicit)
      else if (request.detectedCategory && request.detectedCategory !== 'Destaques Próximos' && request.detectedCategory !== 'Destaques') {
-         const targetCat = request.detectedCategory; // This comes from Gemini
+         const targetCat = request.detectedCategory; 
          
          if (isNewSearch) {
             dbQuery = query(usersRef, orderByChild('category'), equalTo(targetCat), limitToFirst(PAGE_SIZE));
@@ -305,18 +291,14 @@ export default function App() {
             dbQuery = query(usersRef, orderByChild('category'), equalTo(targetCat), startAfter(null, lastLoadedKey), limitToFirst(PAGE_SIZE));
          }
      }
-     // 3. Default: By Role (Pro or Business) OR Mixed (Show All)
      else {
         if (request.searchType === 'mixed') {
-           // Se a busca for mista, trazemos tudo ordenado por chave e filtramos no front-end.
-           // Isso garante que PROs e BUSINESS apareçam sem precisar de um índice complexo.
            if (isNewSearch) {
               dbQuery = query(usersRef, orderByKey(), limitToFirst(PAGE_SIZE));
            } else if (lastLoadedKey) {
               dbQuery = query(usersRef, orderByKey(), startAfter(lastLoadedKey), limitToFirst(PAGE_SIZE));
            }
         } else {
-           // Busca específica por Role
            const targetRole = request.searchType || 'pro';
            if (isNewSearch) {
               dbQuery = query(usersRef, orderByChild('role'), equalTo(targetRole), limitToFirst(PAGE_SIZE));
@@ -332,14 +314,10 @@ export default function App() {
         let snapshot;
         
         try {
-           // Tentativa principal: Consulta otimizada no banco de dados
            snapshot = await get(dbQuery);
         } catch (queryErr: any) {
-           // FALLBACK IMPORTANTE: Se o índice estiver faltando (erro comum), buscamos tudo e filtramos no front
-           // Isso previne a tela branca e garante que o app funcione enquanto os índices não são criados.
            if (queryErr.message && queryErr.message.includes("Index not defined")) {
               console.warn("⚠️ Índice ausente no Firebase. Ativando modo de compatibilidade (Client-side filtering).");
-              // Busca genérica segura (sem ordenação complexa)
               const fallbackQuery = query(usersRef, orderByKey()); 
               snapshot = await get(fallbackQuery);
            } else {
@@ -355,35 +333,29 @@ export default function App() {
               id: key,
               name: u.name || 'Sem Nome',
               title: u.category || (u.role === 'business' ? 'Comércio Local' : 'Prestador'),
-              rating: 5.0, // Mock rating for now or calc from reviews
+              rating: 5.0, 
               reviewCount: u.reviews ? Object.keys(u.reviews).length : 0,
               bio: u.businessDescription || `Serviços de ${u.category || 'qualidade'} em Campo Largo.`,
               avatarUrl: u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || 'User'}&background=random`,
-              distance: u.neighborhood || 'Campo Largo', // Fallback to city if neighborhood missing
-              neighborhood: u.neighborhood || 'Campo Largo', // Explicit neighborhood field
+              distance: u.neighborhood || 'Campo Largo',
+              neighborhood: u.neighborhood || 'Campo Largo',
               tags: u.category ? [u.category] : [],
               reviews: u.reviews ? Object.values(u.reviews) : [],
               isHighlighted: u.highlightExpiresAt ? new Date(u.highlightExpiresAt) > new Date() : false,
-              // Internal usage for filtering
               role: u.role,
-              category: u.category // Important for fallback filtering
+              category: u.category 
            }));
 
-           // Client-side filtering to remove Admins/Clients and respect Mixed Search
            const filteredPros = newPros.filter(p => {
               const r = (p as any).role;
-              // Nunca mostrar Admins ou Clientes na lista pública
               if (r === 'admin' || r === 'master' || r === 'client') return false;
 
               if (request.searchType === 'pro' && r !== 'pro') return false;
               if (request.searchType === 'business' && r !== 'business') return false;
-              // Se for 'mixed', aceita tanto pro quanto business
               
-              // --- FILTROS DE FALLBACK (Caso o DB não tenha filtrado por falta de índice) ---
               if (request.neighborhood && p.neighborhood !== request.neighborhood) return false;
 
               if (request.detectedCategory && request.detectedCategory !== 'Destaques Próximos' && request.detectedCategory !== 'Destaques') {
-                 // Verifica se a categoria bate (seja no campo category ou nas tags)
                  const cat = (p as any).category || '';
                  const tags = p.tags || [];
                  if (cat !== request.detectedCategory && !tags.includes(request.detectedCategory)) return false;
@@ -392,16 +364,13 @@ export default function App() {
               return true;
            });
 
-           // Dedup logic (Firebase pagination might overlap 1 item)
            const uniquePros = isNewSearch ? filteredPros : filteredPros.filter(p => !professionals.find(ex => ex.id === p.id));
            
            if (uniquePros.length > 0) {
               setProfessionals(prev => isNewSearch ? uniquePros : [...prev, ...uniquePros]);
-              // Para paginação funcionar corretamente com orderByKey, usamos o ID do último item original (antes do filtro)
               setLastLoadedKey(entries[entries.length - 1][0]);
            } else {
               if (entries.length > 0) {
-                  // Se baixamos dados mas o filtro removeu tudo, marcamos o último para continuar tentando
                   setLastLoadedKey(entries[entries.length - 1][0]);
               } else {
                   setHasMore(false);
@@ -409,7 +378,7 @@ export default function App() {
            }
            
            if (entries.length < PAGE_SIZE) {
-              setHasMore(false); // Less than page size means end of list from DB
+              setHasMore(false); 
            }
 
         } else {
@@ -461,7 +430,7 @@ export default function App() {
        description: `Busca ${coordinates ? 'por GPS' : 'textual'} em ${searchNeighborhood || 'Águas Claras'}`,
        location: "Campo Largo",
        urgency: "N/A",
-       searchType: searchTab, // Passa 'pro' ou 'business' dependendo da aba selecionada
+       searchType: searchTab, 
        neighborhood: searchNeighborhood,
        onlyHighRated: searchHighRated,
        coordinates,
@@ -470,7 +439,6 @@ export default function App() {
 
     setSelectedSubCategory(finalQuery === 'Destaques Próximos' ? 'Destaques Perto de Você' : finalQuery); 
     
-    // Perform the scalable search
     await performSearch(request, true);
     
     setView('results');
@@ -575,14 +543,12 @@ export default function App() {
     };
 
     try {
-      // Tenta compartilhamento nativo primeiro (sem checagem estrita de canShare que as vezes falha)
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
         throw new Error("Web Share API not supported");
       }
     } catch (err) {
-      // Fallback robusto para área de transferência
       console.warn("Share failed, falling back to clipboard", err);
       try {
         await navigator.clipboard.writeText(`${shareData.text} \n${shareData.url}`);
@@ -594,7 +560,6 @@ export default function App() {
   };
 
   const handleCopyPix = () => {
-     // Use dynamic Pix Key from AppConfig, fallback if missing
      const pixKey = appConfig.pixKey || "crinf.negocios@gmail.com";
      navigator.clipboard.writeText(pixKey);
      alert("Chave Pix copiada: " + pixKey);
@@ -756,9 +721,18 @@ export default function App() {
         </div>
       )}
 
-      {/* BANNER PWA - VISÍVEL APENAS SE DEFERRED PROMPT EXISTIR */}
+      {/* BANNER PWA */}
       {showInstallBanner && deferredPrompt && (
-        <InstallBanner onInstall={handleInstallApp} onDismiss={handleDismissInstall} />
+        <InstallBanner 
+          onInstall={handleInstallApp} 
+          onDismiss={handleDismissInstall} 
+          onHelp={() => setShowInstallTutorial(true)}
+        />
+      )}
+      
+      {/* TUTORIAL MODAL */}
+      {showInstallTutorial && (
+        <InstallTutorial onClose={() => setShowInstallTutorial(false)} />
       )}
 
       {view !== 'admin-panel' && view !== 'admin-login' && view !== 'user-profile' && view !== 'login' && (
@@ -792,6 +766,12 @@ export default function App() {
                        <span className="font-medium text-gray-700 dark:text-gray-200">Compartilhar App</span>
                     </button>
                     
+                    {/* BOTÃO PARA ABRIR O TUTORIAL MANUALMENTE */}
+                    <button onClick={() => { setShowAbout(false); setShowInstallTutorial(true); }} className="w-full flex items-center gap-3 p-3 bg-primary/10 dark:bg-primary/20 rounded-xl hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors">
+                       <Download className="text-primary" size={20} />
+                       <span className="font-medium text-primary">Instalar Aplicativo (Tutorial)</span>
+                    </button>
+
                     {/* CONTATO DE SUPORTE */}
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between">
                        <div className="flex items-center gap-3">
