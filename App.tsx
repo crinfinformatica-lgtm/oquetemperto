@@ -13,6 +13,7 @@ import AppLogo from './components/AppLogo';
 import PublicUtilities from './components/PublicUtilities';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import WelcomeModal from './components/WelcomeModal';
+import InstallBanner from './components/InstallBanner'; // Importado
 import { identifyServiceCategory } from './services/geminiService'; // Removed findMatchingProfessionals
 import { AppView, ServiceRequest, Professional, User, AppConfig, Review } from './types';
 import { 
@@ -42,6 +43,10 @@ export default function App() {
   const [showPrivacy, setShowPrivacy] = useState(false); // New: Privacy Modal Control
   const [showWelcome, setShowWelcome] = useState(false); // New: Onboarding Modal Control
   const [darkMode, setDarkMode] = useState(false);
+
+  // PWA Install State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
 
   // New Search State
   const [searchTab, setSearchTab] = useState<'pro' | 'business'>('pro');
@@ -79,6 +84,41 @@ export default function App() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showAdminResetPass, setShowAdminResetPass] = useState(false);
   const [adminResetSuccess, setAdminResetSuccess] = useState(false);
+
+  // --- PWA INSTALL LISTENER ---
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent Chrome 67 and earlier from automatically showing the prompt
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+      // Update UI to notify the user they can add to home screen
+      // Only show if user hasn't dismissed it recently (simplified logic here)
+      setShowInstallBanner(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setShowInstallBanner(false);
+      }
+      setDeferredPrompt(null);
+    }
+  };
+
+  const handleDismissInstall = () => {
+    setShowInstallBanner(false);
+  };
+
 
   // --- FIREBASE INTEGRATION ---
 
@@ -714,6 +754,11 @@ export default function App() {
            <AlertTriangle size={18} />
            {dbConnectionError} (Verifique o Console F12)
         </div>
+      )}
+
+      {/* BANNER PWA - VISÍVEL APENAS SE DEFERRED PROMPT EXISTIR */}
+      {showInstallBanner && deferredPrompt && (
+        <InstallBanner onInstall={handleInstallApp} onDismiss={handleDismissInstall} />
       )}
 
       {view !== 'admin-panel' && view !== 'admin-login' && view !== 'user-profile' && view !== 'login' && (
