@@ -867,6 +867,23 @@ export default function App() {
                    </form>
                 </div>
              </div>
+
+             {/* NOVO BOTÃO DE INSTALAÇÃO - LOGO APÓS A BUSCA */}
+             <div className="mt-6 w-full max-w-2xl px-1 md:px-0">
+                <button 
+                  onClick={handleInstallApp}
+                  className="w-full bg-white dark:bg-gray-800 border-2 border-dashed border-primary/30 hover:border-primary p-4 rounded-2xl transition-all flex items-center gap-4 group text-left hover:bg-blue-50/30 dark:hover:bg-blue-900/10 cursor-pointer shadow-sm hover:shadow-md"
+                >
+                   <div className="bg-primary/10 p-3 rounded-full text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                      <Download size={24} />
+                   </div>
+                   <div>
+                      <h3 className="font-bold text-gray-800 dark:text-white">Instale o app no seu dispositivo</h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Acesso rápido e funciona sem internet.</p>
+                   </div>
+                </button>
+             </div>
+
              <PublicUtilities />
           </div>
         )}
