@@ -6,8 +6,10 @@ import {
   Edit, Ban, CheckCircle, Palette, Image as ImageIcon, 
   Type, Download, Share2, LogOut, Save, Eye, EyeOff, Zap, X, Calendar, Clock, Copy, RefreshCw, Upload, Menu, Database, FileUp, AlertTriangle, FileText, Code, Camera, UserPlus, ChevronDown, AlignLeft, Smartphone, Link as LinkIcon
 } from 'lucide-react';
+// CORREÇÃO: Removemos 'storage' desta importação
 import { db, firebaseConfig, auth } from '../services/firebase';
 import { ref, set, onValue, get } from 'firebase/database';
+// CORREÇÃO: Removemos a importação do firebase/storage pois não usamos mais upload direto
 import { initializeApp as initializeFireApp, deleteApp } from 'firebase/app';
 import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword, signOut as signOutSecondary, sendPasswordResetEmail } from 'firebase/auth';
 import AppLogo from './AppLogo';
@@ -277,7 +279,7 @@ const UserTable = ({
     );
 };
 
-// ... [EditUserModal component stays the same, omitted for brevity but preserved in structure] ...
+// ... [EditUserModal component] ...
 const EditUserModal = ({ 
    user, 
    onClose, 
