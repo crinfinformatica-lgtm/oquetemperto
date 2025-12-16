@@ -100,6 +100,7 @@ export interface AppConfig {
   logoUrl?: string; // Custom uploaded logo
   pixKey?: string; // Chave Pix para contribuição
   supportEmail?: string; // Email de suporte visível no app
+  apkUrl?: string; // URL para download direto do APK Android
 }
 
 export type AppView = 

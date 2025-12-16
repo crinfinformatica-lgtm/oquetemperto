@@ -19,7 +19,7 @@ import { identifyServiceCategory } from './services/geminiService';
 import { AppView, ServiceRequest, Professional, User, AppConfig, Review } from './types';
 import { 
   Search, Loader2, Briefcase, Store, ArrowLeft, User as UserIcon, 
-  Eye, EyeOff, MapPin, Star, X, Map, Share2, Moon, Sun, Copy, ShieldAlert, Mail, AlertTriangle, CheckCircle, Info, Download 
+  Eye, EyeOff, MapPin, Star, X, Map, Share2, Moon, Sun, Copy, ShieldAlert, Mail, AlertTriangle, CheckCircle, Info, Download, Smartphone 
 } from 'lucide-react';
 import { ALLOWED_NEIGHBORHOODS } from './constants';
 
@@ -49,6 +49,7 @@ export default function App() {
   // PWA Install State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   // New Search State
   const [searchTab, setSearchTab] = useState<'pro' | 'business'>('pro');
@@ -87,20 +88,33 @@ export default function App() {
   const [showAdminResetPass, setShowAdminResetPass] = useState(false);
   const [adminResetSuccess, setAdminResetSuccess] = useState(false);
 
-  // --- PWA INSTALL LISTENER ---
+  // --- PWA INSTALL LISTENER & STANDALONE CHECK ---
   useEffect(() => {
+    // 1. Detectar se já está instalado (Standalone Mode)
+    const checkStandalone = () => {
+      const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+      setIsStandalone(!!isStandaloneMode);
+    };
+    checkStandalone();
+    
+    // 2. Ouvir evento de instalação (Chrome/Android)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShowInstallBanner(true);
+      // Só mostra o banner flutuante se NÃO estiver instalado
+      if (!isStandalone) {
+         setShowInstallBanner(true);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('resize', checkStandalone); // Re-check on rotation/resize just in case
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('resize', checkStandalone);
     };
-  }, []);
+  }, [isStandalone]);
 
   const handleInstallApp = async () => {
     if (deferredPrompt) {
@@ -111,7 +125,7 @@ export default function App() {
       }
       setDeferredPrompt(null);
     } else {
-       // Se não houver prompt automático (iOS ou já instalado/bloqueado), abre o tutorial
+       // Se não houver prompt automático (iOS, Bloqueio do Chrome ou já instalado), abre o tutorial manual
        setShowInstallTutorial(true);
     }
   };
@@ -721,8 +735,8 @@ export default function App() {
         </div>
       )}
 
-      {/* BANNER PWA */}
-      {showInstallBanner && deferredPrompt && (
+      {/* BANNER PWA - Só aparece se não estiver instalado (isStandalone false) */}
+      {showInstallBanner && deferredPrompt && !isStandalone && (
         <InstallBanner 
           onInstall={handleInstallApp} 
           onDismiss={handleDismissInstall} 
@@ -766,11 +780,13 @@ export default function App() {
                        <span className="font-medium text-gray-700 dark:text-gray-200">Compartilhar App</span>
                     </button>
                     
-                    {/* BOTÃO PARA ABRIR O TUTORIAL MANUALMENTE */}
-                    <button onClick={() => { setShowAbout(false); setShowInstallTutorial(true); }} className="w-full flex items-center gap-3 p-3 bg-primary/10 dark:bg-primary/20 rounded-xl hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors">
-                       <Download className="text-primary" size={20} />
-                       <span className="font-medium text-primary">Instalar Aplicativo (Tutorial)</span>
-                    </button>
+                    {/* BOTÃO PARA ABRIR O TUTORIAL MANUALMENTE - Só se não estiver instalado */}
+                    {!isStandalone && (
+                        <button onClick={() => { setShowAbout(false); setShowInstallTutorial(true); }} className="w-full flex items-center gap-3 p-3 bg-primary/10 dark:bg-primary/20 rounded-xl hover:bg-primary/20 dark:hover:bg-primary/30 transition-colors">
+                           <Download className="text-primary" size={20} />
+                           <span className="font-medium text-primary">Instalar Aplicativo (Tutorial)</span>
+                        </button>
+                    )}
 
                     {/* CONTATO DE SUPORTE */}
                     <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-xl border border-blue-100 dark:border-blue-800 flex items-center justify-between">
@@ -868,21 +884,40 @@ export default function App() {
                 </div>
              </div>
 
-             {/* NOVO BOTÃO DE INSTALAÇÃO - LOGO APÓS A BUSCA */}
-             <div className="mt-6 w-full max-w-2xl px-1 md:px-0">
-                <button 
-                  onClick={handleInstallApp}
-                  className="w-full bg-white dark:bg-gray-800 border-2 border-dashed border-primary/30 hover:border-primary p-4 rounded-2xl transition-all flex items-center gap-4 group text-left hover:bg-blue-50/30 dark:hover:bg-blue-900/10 cursor-pointer shadow-sm hover:shadow-md"
-                >
-                   <div className="bg-primary/10 p-3 rounded-full text-primary group-hover:scale-110 transition-transform flex-shrink-0">
-                      <Download size={24} />
-                   </div>
-                   <div>
-                      <h3 className="font-bold text-gray-800 dark:text-white">Instale o app no seu dispositivo</h3>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Acesso rápido e funciona sem internet.</p>
-                   </div>
-                </button>
-             </div>
+             {/* BOTÃO DE INSTALAÇÃO (PWA E APK) - SÓ APARECE SE NÃO ESTIVER INSTALADO */}
+             {!isStandalone && (
+               <div className="mt-6 w-full max-w-2xl px-1 md:px-0 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button 
+                    onClick={handleInstallApp}
+                    className={`bg-white dark:bg-gray-800 border-2 border-dashed border-primary/30 hover:border-primary p-4 rounded-2xl transition-all flex items-center gap-3 group text-left hover:bg-blue-50/30 dark:hover:bg-blue-900/10 cursor-pointer shadow-sm hover:shadow-md ${appConfig.apkUrl ? '' : 'md:col-span-2'}`}
+                  >
+                     <div className="bg-primary/10 p-3 rounded-full text-primary group-hover:scale-110 transition-transform flex-shrink-0">
+                        <Download size={24} />
+                     </div>
+                     <div>
+                        <h3 className="font-bold text-gray-800 dark:text-white">Instalar Aplicativo</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Versão Web Leve (PWA)</p>
+                     </div>
+                  </button>
+
+                  {/* BOTÃO DOWNLOAD APK (VISÍVEL APENAS SE CONFIGURADO NO ADMIN) */}
+                  {appConfig.apkUrl && (
+                     <a 
+                       href={appConfig.apkUrl}
+                       download
+                       className="bg-green-50 dark:bg-gray-800 border-2 border-dashed border-green-500/30 hover:border-green-600 p-4 rounded-2xl transition-all flex items-center gap-3 group text-left hover:bg-green-50/50 dark:hover:bg-green-900/10 cursor-pointer shadow-sm hover:shadow-md"
+                     >
+                        <div className="bg-green-100 p-3 rounded-full text-green-600 group-hover:scale-110 transition-transform flex-shrink-0">
+                           <Smartphone size={24} />
+                        </div>
+                        <div>
+                           <h3 className="font-bold text-gray-800 dark:text-white">Baixar APK Android</h3>
+                           <p className="text-xs text-gray-500 dark:text-gray-400">Instalação Manual</p>
+                        </div>
+                     </a>
+                  )}
+               </div>
+             )}
 
              <PublicUtilities />
           </div>
