@@ -6,10 +6,8 @@ import {
   Edit, Ban, CheckCircle, Palette, Image as ImageIcon, 
   Type, Download, Share2, LogOut, Save, Eye, EyeOff, Zap, X, Calendar, Clock, Copy, RefreshCw, Upload, Menu, Database, FileUp, AlertTriangle, FileText, Code, Camera, UserPlus, ChevronDown, AlignLeft, Smartphone, Link as LinkIcon
 } from 'lucide-react';
-import { db, firebaseConfig, auth, storage } from '../services/firebase';
+import { db, firebaseConfig, auth } from '../services/firebase';
 import { ref, set, onValue, get } from 'firebase/database';
-// Removed uploadBytesResumable since we are switching to manual link strategy
-import { ref as storageRef, getDownloadURL } from 'firebase/storage';
 import { initializeApp as initializeFireApp, deleteApp } from 'firebase/app';
 import { getAuth as getSecondaryAuth, createUserWithEmailAndPassword, signOut as signOutSecondary, sendPasswordResetEmail } from 'firebase/auth';
 import AppLogo from './AppLogo';
