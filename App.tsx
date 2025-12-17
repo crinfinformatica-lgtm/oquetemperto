@@ -115,7 +115,6 @@ export default function App() {
         if (firebaseUser) {
           const userRef = ref(db, `users/${firebaseUser.uid}`);
           
-          // REFORÇO MASTER: Se for o email da Crinf, garante que o role seja 'master' no banco
           if (firebaseUser.email === MASTER_EMAIL) {
              const snap = await get(userRef);
              const userData = snap.val();
@@ -289,9 +288,15 @@ export default function App() {
     setIsAdminLoggingIn(true);
 
     try {
-      // BYPASS MASTER: Se estiver sem config e for o email do desenvolvedor, entra em modo de emergência
+      // BYPASS MASTER SEGURANÇA: Exige PIN apenas se o banco estiver realmente offline
       if ((!auth || (auth as any)._isMock) && loginUser === MASTER_EMAIL) {
-         console.warn("🔐 Master Bypass: Entrando em modo de configuração de emergência.");
+         const pin = prompt("🔐 MODO DE EMERGÊNCIA: Digite seu PIN de recuperação (definido pelo desenvolvedor):");
+         if (pin !== "2024") { // PIN Exemplo, mude conforme necessário
+            setLoginError('PIN de recuperação inválido.');
+            setIsAdminLoggingIn(false);
+            return;
+         }
+         
          setCurrentUser({
             id: 'master-offline',
             name: 'Desenvolvedor Crinf',
@@ -312,7 +317,6 @@ export default function App() {
 
       const userCredential = await signInWithEmailAndPassword(auth, loginUser, loginPass);
       
-      // Verificação de segurança MASTER: Prioridade absoluta por e-mail
       if (userCredential.user.email === MASTER_EMAIL) {
           setView('admin-panel');
           setIsAdminLoggingIn(false);
@@ -329,20 +333,15 @@ export default function App() {
           signOut(auth);
       }
     } catch (error: any) {
-      // Log amigável apenas para debug, sem poluir como "Error" fatal se for apenas falta de config
       if (error.message === 'CONFIG_MISSING') {
-         console.info("Configuração ausente detectada no login.");
-         setLoginError('O Firebase não está configurado. Use o ícone de engrenagem acima ou entre com o e-mail Master para configurar.');
+         setLoginError('O Banco de Dados está desconectado. Use o e-mail Master para recuperar a conexão ou clique na engrenagem acima.');
          setErrorType('config');
       } else {
-         console.error("Login Admin falhou:", error.code || error.message);
          if (error.code === 'auth/invalid-api-key' || error.code === 'auth/network-request-failed') {
             setLoginError('Falha na conexão com Firebase. Verifique suas chaves na engrenagem.');
             setErrorType('config');
          } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
             setLoginError('E-mail ou senha administrativos incorretos.');
-         } else if (error.code === 'auth/too-many-requests') {
-            setLoginError('Muitas tentativas. Tente novamente mais tarde.');
          } else {
             setLoginError('Erro ao autenticar: ' + (error.message || 'Falha desconhecida.'));
          }
@@ -468,7 +467,13 @@ export default function App() {
                  <div className="flex justify-between items-start mb-6">
                     <h2 className="text-2xl font-black flex items-center gap-2"><Shield className="text-primary"/> Acesso Admin</h2>
                     <div className="flex gap-2">
-                       <button onClick={() => setView('login')} className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-primary rounded-xl transition-all" title="Configurar Firebase"><Settings size={20}/></button>
+                       <button 
+                         onClick={() => window.dispatchEvent(new CustomEvent('open-firebase-config'))} 
+                         className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-primary rounded-xl transition-all" 
+                         title="Recuperar Conexão"
+                       >
+                         <Settings size={20}/>
+                       </button>
                        <button onClick={() => setView('home')} className="text-gray-400 hover:text-gray-600 p-2"><X size={20}/></button>
                     </div>
                  </div>
@@ -521,10 +526,10 @@ export default function App() {
                             {errorType === 'config' && (
                                <button 
                                  type="button" 
-                                 onClick={() => setView('login')} 
+                                 onClick={() => window.dispatchEvent(new CustomEvent('open-firebase-config'))} 
                                  className="w-full bg-orange-600 text-white p-3 rounded-lg font-black flex items-center justify-center gap-2 hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/20"
                                >
-                                  <Settings size={16} /> Abrir Configurações
+                                  <Settings size={16} /> Corrigir Conexão Agora
                                </button>
                             )}
                          </div>
@@ -536,7 +541,7 @@ export default function App() {
                       
                       <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700 mt-6">
                          <p className="text-[10px] text-gray-400 text-center leading-relaxed">
-                            Área restrita. Se for o Master, entre com seu e-mail para configurar o sistema mesmo sem Firebase ativo.
+                            Se as chaves do site foram apagadas, entre com o e-mail Master para restaurar o sistema.
                          </p>
                       </div>
                    </form>

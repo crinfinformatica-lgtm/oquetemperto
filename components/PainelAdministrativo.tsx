@@ -1,11 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, AppConfig } from '../types';
 import { 
   Users, Shield, Store, Briefcase, Lock, Unlock, Trash2, 
   Palette, Image as ImageIcon, Save, LogOut, Zap, Smartphone, Menu, Hammer, ExternalLink, Siren, FileDown, Settings, CheckCircle, FileText, Globe, MapPin, Phone, Instagram, Facebook, ShieldAlert, Mail, AlertTriangle, Info, Clock, Calendar, X, RefreshCw, Upload, Download, Copy, Code, Link as LinkIcon,
-  // Fix: Adding missing imports for Loader2 and Database icons
-  Loader2, Database
+  Loader2, Database, HelpCircle, ChevronRight
 } from 'lucide-react';
 import { db, hasValidConfig } from '../services/firebase';
 import { ref, update, onValue, remove } from 'firebase/database';
@@ -38,6 +36,9 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
   const [configForm, setConfigForm] = useState<AppConfig>(appConfig);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
+  // Estados para o Gerador de TWA
+  const [userSha256, setUserSha256] = useState('');
+
   useEffect(() => {
     if (!hasValidConfig || !db || Object.keys(db).length === 0) {
       setIsLoading(false);
@@ -66,7 +67,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
     setIsSavingConfig(true);
     try {
       if (!hasValidConfig) {
-         alert("Não é possível salvar as configurações de cores/nomes sem o Firebase configurado.");
+         alert("Não é possível salvar as configurações de cores/nomes sem o Firebase conectado.");
          return;
       }
       await onUpdateConfig(configForm);
@@ -79,19 +80,27 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
     }
   };
 
-  const copyAssetLinks = () => {
-    const json = `[
+  const getAssetLinksJson = (sha: string) => {
+    const cleanSha = sha.trim() || "COLE_SEU_SHA256_AQUI";
+    return `[
   {
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
       "package_name": "com.oquetempertocl.app",
-      "sha256_cert_fingerprints": ["COLE_SEU_SHA256_AQUI"]
+      "sha256_cert_fingerprints": ["${cleanSha}"]
     }
   }
 ]`;
-    navigator.clipboard.writeText(json);
-    alert("JSON copiado! Cole no arquivo public/.well-known/assetlinks.json");
+  };
+
+  const copyAssetLinks = () => {
+    if (!userSha256) {
+       alert("Digite ou cole seu SHA-256 primeiro!");
+       return;
+    }
+    navigator.clipboard.writeText(getAssetLinksJson(userSha256));
+    alert("Código copiado! Agora cole no arquivo 'public/.well-known/assetlinks.json' do seu projeto.");
   };
 
   const getRoleIcon = (role: UserRole) => {
@@ -115,10 +124,10 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {!hasValidConfig && (
-           <div className="p-8 text-center bg-orange-50 border-b border-orange-100">
-              <AlertTriangle className="mx-auto text-orange-500 mb-3" size={32} />
-              <p className="text-orange-800 font-bold">Banco de Dados Offline</p>
-              <p className="text-xs text-orange-600 max-w-xs mx-auto mt-1">Conecte o Firebase através da aba "TWA / APK" ou da tela de login para gerenciar usuários.</p>
+           <div className="p-12 text-center bg-gray-50 border-b border-gray-100 flex flex-col items-center">
+              <Database className="text-gray-300 mb-4" size={48} />
+              <p className="text-gray-400 font-bold">Banco de Dados Indisponível</p>
+              <p className="text-xs text-gray-400 max-w-xs mt-1">Recupere a conexão na aba "Ferramentas" para gerenciar usuários.</p>
            </div>
         )}
 
@@ -245,38 +254,13 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
         </div>
       </aside>
 
-      <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 z-20">
-         <span className="font-bold text-lg text-primary">Painel Admin</span>
-         <button onClick={() => {}} className="p-2 text-gray-600"><Menu /></button>
-      </div>
-
       <main className="flex-1 md:ml-64 p-4 md:p-8 mt-16 md:mt-0">
-        {!hasValidConfig && (
-           <div className="mb-6 bg-orange-600 text-white p-4 rounded-2xl shadow-lg flex items-center justify-between animate-in slide-in-from-top-4">
-              <div className="flex items-center gap-4">
-                 <div className="bg-orange-500 p-2 rounded-full">
-                    <ShieldAlert size={24} />
-                 </div>
-                 <div>
-                    <h2 className="font-black text-lg">Modo de Emergência</h2>
-                    <p className="text-xs opacity-90 leading-tight">Firebase não configurado. Você só pode gerenciar o TWA e as chaves de conexão.</p>
-                 </div>
-              </div>
-              <button 
-                 onClick={() => setActiveTab('tools')}
-                 className="bg-white text-orange-600 px-4 py-2 rounded-xl text-xs font-black shadow-sm hover:scale-105 transition-transform"
-              >
-                 Configurar Agora
-              </button>
-           </div>
-        )}
-
         <h1 className="text-2xl font-bold text-gray-800 mb-6 capitalize">
           {activeTab === 'dashboard' ? 'Visão Geral' : 
            activeTab === 'pros' ? 'Gerenciar Prestadores' :
            activeTab === 'businesses' ? 'Gerenciar Comércios' :
            activeTab === 'config' ? 'Configurações do App' :
-           activeTab === 'tools' ? 'Ferramentas TWA' :
+           activeTab === 'tools' ? 'Configurar TWA (Loja)' :
            activeTab}
         </h1>
 
@@ -354,7 +338,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                            </div>
                         </div>
                         <div>
-                           <label className="block text-sm font-bold text-gray-700 mb-2">Chave Pix (Doação)</label>
+                           <label className="block text-sm font-bold text-gray-700 mb-2">Chave Pix</label>
                            <input type="text" value={configForm.pixKey} onChange={e => setConfigForm({...configForm, pixKey: e.target.value})} className="w-full p-2 border rounded" />
                         </div>
                         <div>
@@ -377,78 +361,74 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
 
             {activeTab === 'tools' && (
               <div className="max-w-4xl space-y-8 animate-in fade-in duration-300">
-                 <div className="bg-blue-600 text-white p-8 rounded-3xl shadow-xl border-4 border-blue-400 relative overflow-hidden">
-                    <div className="relative z-10">
-                       <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><Settings /> Configuração do Firebase</h2>
-                       <p className="text-sm opacity-90 max-w-xl">
-                          Se você está vendo esta tela, é porque o aplicativo ainda não está conectado ao seu banco de dados Firebase. 
-                          Clique no botão abaixo para abrir a janela de configuração.
-                       </p>
-                       <button 
-                         onClick={() => { (window as any).dispatchEvent(new CustomEvent('open-firebase-config')); }}
-                         className="mt-6 bg-white text-blue-600 px-8 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-transform flex items-center gap-2"
-                       >
-                          <Settings /> Abrir Janela de Configuração
-                       </button>
-                    </div>
-                    <div className="absolute -bottom-10 -right-10 opacity-10">
-                       <Database size={240} />
-                    </div>
-                 </div>
-
                  <div className="bg-teal-50 border border-teal-200 rounded-3xl p-8 shadow-sm">
-                    <h2 className="text-xl font-bold text-teal-900 mb-4 flex items-center gap-2">
-                       <Smartphone size={24} /> Configurar TWA (Trusted Web Activity)
+                    <h2 className="text-xl font-bold text-teal-900 mb-6 flex items-center gap-2">
+                       <Smartphone size={24} /> Guia para Leigos: Onde achar o SHA-256?
                     </h2>
                     
-                    <div className="grid grid-cols-1 gap-6">
-                       <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm">
-                          <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                             <span className="bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
-                             Obter a Chave SHA-256
-                          </h3>
-                          <div className="space-y-3 text-sm text-gray-600">
-                             <p>Para o Android esconder a barra de endereços, você precisa provar que é o dono do app.</p>
-                             <ul className="list-disc pl-5 space-y-2">
-                                <li>Se usa o <strong>PWABuilder</strong>: A chave SHA-256 aparece na tela após você clicar em "Generate APK".</li>
-                                <li>Se o app está na <strong>Play Store</strong>: Vá em <em>Configurações &gt; Integridade do App</em> e procure por "Impressão digital do certificado de assinatura".</li>
-                             </ul>
+                    <div className="space-y-6">
+                       {/* Passo 1 */}
+                       <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm flex gap-4">
+                          <div className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">1</div>
+                          <div>
+                             <h3 className="font-bold text-gray-800 mb-1">Acesse o PWABuilder</h3>
+                             <p className="text-sm text-gray-600">
+                                Digite seu site e clique em <strong>Package for Stores</strong> &gt; <strong>Android (Generate)</strong>.
+                             </p>
                           </div>
                        </div>
 
-                       <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm">
-                          <div className="flex justify-between items-center mb-4">
-                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                <span className="bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
-                                Gerar o arquivo Digital Asset Links
-                             </h3>
-                             <button 
-                                onClick={copyAssetLinks}
-                                className="flex items-center gap-2 text-xs bg-teal-100 text-teal-700 font-bold px-3 py-1.5 rounded-lg hover:bg-teal-200 transition-colors"
-                             >
-                                <Copy size={14} /> Copiar JSON
-                             </button>
-                          </div>
-                          
-                          <p className="text-xs text-gray-500 mb-4">
-                             Edite o arquivo <code className="bg-gray-100 px-1 py-0.5 rounded">public/.well-known/assetlinks.json</code> no seu código-fonte e cole o conteúdo abaixo.
-                          </p>
-
-                          <div className="bg-gray-900 rounded-xl p-6 font-mono text-[11px] text-teal-400 overflow-x-auto border-l-4 border-teal-500">
-                             <pre>{`[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.oquetempertocl.app",
-      "sha256_cert_fingerprints": [
-        "SUA_CHAVE_SHA256_AQUI"
-      ]
-    }
-  }
-]`}</pre>
+                       {/* Passo 2 */}
+                       <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm flex gap-4">
+                          <div className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">2</div>
+                          <div className="flex-1">
+                             <h3 className="font-bold text-gray-800 mb-1">Onde está a chave?</h3>
+                             <p className="text-sm text-gray-600 mb-4">
+                                Após o download do ZIP terminar, abra o arquivo <code>readme.txt</code> que vem dentro dele ou procure na tela final por <strong>"Signing Key"</strong> ou <strong>"SHA-256 Fingerprint"</strong>. É um código grande com letras e números.
+                             </p>
+                             
+                             <div className="bg-teal-50 p-4 rounded-xl border border-teal-200">
+                                <label className="block text-xs font-bold text-teal-800 mb-2 uppercase">Cole aqui sua chave SHA-256:</label>
+                                <input 
+                                   type="text" 
+                                   placeholder="Ex: AB:23:CD:45:..." 
+                                   value={userSha256}
+                                   onChange={e => setUserSha256(e.target.value)}
+                                   className="w-full p-3 border border-teal-300 rounded-lg font-mono text-xs focus:ring-2 focus:ring-teal-500 outline-none"
+                                />
+                             </div>
                           </div>
                        </div>
+
+                       {/* Passo 3 */}
+                       <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm flex gap-4">
+                          <div className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">3</div>
+                          <div className="flex-1">
+                             <div className="flex justify-between items-start mb-2">
+                                <h3 className="font-bold text-gray-800">Crie o arquivo Asset Links</h3>
+                                <button 
+                                   onClick={copyAssetLinks}
+                                   className="flex items-center gap-2 text-xs bg-teal-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors shadow-md"
+                                >
+                                   <Copy size={14} /> Copiar Código Pronto
+                                </button>
+                             </div>
+                             <p className="text-xs text-gray-500 mb-4">
+                                Este é o código que deve estar no arquivo <code>public/.well-known/assetlinks.json</code> do seu site:
+                             </p>
+
+                             <div className="bg-gray-900 rounded-xl p-6 font-mono text-[11px] text-teal-400 overflow-x-auto border-l-4 border-teal-500">
+                                <pre>{getAssetLinksJson(userSha256)}</pre>
+                             </div>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="mt-8 p-4 bg-yellow-50 rounded-2xl border border-yellow-200 flex gap-3">
+                       <HelpCircle className="text-yellow-600 shrink-0" />
+                       <p className="text-xs text-yellow-800 leading-tight">
+                          <strong>Dica Final:</strong> Se você não encontrar a chave no arquivo ZIP, vá no seu <strong>Google Play Console</strong> &gt; <strong>Integridade do App</strong> e copie a chave SHA-256 de lá. Ela é a única que o Google aceita para sumir com a barra de endereços.
+                       </p>
                     </div>
                  </div>
               </div>
