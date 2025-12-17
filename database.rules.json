@@ -1,4 +1,3 @@
-
 {
   "rules": {
     ".read": false,
@@ -15,13 +14,27 @@
         "category"
       ],
       "$uid": {
+        // Regra de Escrita: O dono pode escrever, mas existem restrições de validação abaixo
         ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')",
-        ".validate": "newData.hasChildren(['name', 'role']) && ((root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master') || (!data.exists() && newData.child('role').val() != 'admin' && newData.child('role').val() != 'master') || (data.exists() && newData.child('role').val() === data.child('role').val()))"
+        ".validate": "newData.hasChildren(['name', 'role']) && (
+          // Se for ADMIN ou MASTER, pode fazer qualquer coisa
+          (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master') || 
+          (
+            // Se for um novo usuário (registro):
+            (!data.exists() && newData.child('role').val() != 'admin' && newData.child('role').val() != 'master' && newData.child('status').val() === 'active') ||
+            // Se for um usuário editando o próprio perfil: NÃO PODE mudar role nem status
+            (data.exists() && newData.child('role').val() === data.child('role').val() && newData.child('status').val() === data.child('status').val())
+          )
+        )"
       }
     },
     "admin_notifications": {
       ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')",
-      ".write": "auth != null"
+      // Apenas usuários logados podem enviar notificações, e elas devem ter um formato fixo
+      ".write": "auth != null",
+      "$notif_id": {
+        ".validate": "newData.hasChildren(['type', 'message', 'timestamp'])"
+      }
     }
   }
 }
