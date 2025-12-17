@@ -192,7 +192,7 @@ export default function App() {
         setCurrentRequest(request);
      }
 
-     const PAGE_SIZE = 20;
+     const PAGE_SIZE = 50; // Increased page size to account for local filtering
      const usersRef = ref(db, 'users');
      let dbQuery;
 
@@ -209,8 +209,28 @@ export default function App() {
            const results: Professional[] = [];
 
            entries.forEach(([key, u]: [string, any]) => {
+              // 1. Filter out system roles and banned
               if (u.role === 'admin' || u.role === 'master' || u.status === 'banned') return;
               
+              // 2. Filter by Search Tab (Role) - CRITICAL FIX
+              if (request.searchType === 'pro' && u.role !== 'pro') return;
+              if (request.searchType === 'business' && u.role !== 'business') return;
+
+              // 3. Filter by Neighborhood (if specified)
+              if (request.neighborhood && u.neighborhood !== request.neighborhood) return;
+
+              // 4. Filter by Category/SubCategory match (Basic text filtering)
+              const searchLower = searchQuery.toLowerCase();
+              const catLower = (u.category || '').toLowerCase();
+              const nameLower = (u.name || '').toLowerCase();
+              const detectedLower = (request.detectedCategory || '').toLowerCase();
+
+              // If there's a search query, check if name or category matches
+              if (searchQuery.trim() !== '') {
+                 const matchesKeyword = nameLower.includes(searchLower) || catLower.includes(searchLower) || catLower.includes(detectedLower);
+                 if (!matchesKeyword) return;
+              }
+
               results.push({
                  id: key,
                  name: u.name || 'Sem Nome',
@@ -229,11 +249,15 @@ export default function App() {
 
            setProfessionals(prev => isNewSearch ? results : [...prev, ...results]);
            setLastLoadedKey(entries[entries.length - 1][0]);
+           
+           // If we didn't get enough results after local filtering, and the DB still has more data, 
+           // technically we should keep fetching, but for now we rely on the larger PAGE_SIZE.
            if (entries.length < PAGE_SIZE) setHasMore(false);
         } else {
            setHasMore(false);
         }
      } catch (err) {
+        console.error("Search Error:", err);
         setHasMore(false);
      } finally {
         setIsLoadingMore(false);
@@ -245,6 +269,8 @@ export default function App() {
     e.preventDefault();
     setIsMatching(true);
     let finalQuery = searchQuery || (searchTab === 'pro' ? 'Destaques de Serviços' : 'Destaques de Comércio');
+    
+    // Use AI to classify the search term for better matching results
     const result = await identifyServiceCategory(finalQuery);
     
     const request: ServiceRequest = {
@@ -256,7 +282,7 @@ export default function App() {
        searchType: searchTab, 
        neighborhood: searchNeighborhood,
        onlyHighRated: searchHighRated,
-       detectedCategory: result.subCategory
+       detectedCategory: result.subCategory // The Portuguese label like "Pizzaria"
     };
 
     setSelectedSubCategory(finalQuery); 
