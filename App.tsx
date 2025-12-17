@@ -37,6 +37,8 @@ const INITIAL_CONFIG: AppConfig = {
   supportEmail: 'crinf.app@gmail.com'
 };
 
+const MASTER_EMAIL = 'crinf.app@gmail.com';
+
 export default function App() {
   const [view, setView] = useState<AppView>('home');
   const [showAbout, setShowAbout] = useState(false);
@@ -114,7 +116,7 @@ export default function App() {
           const userRef = ref(db, `users/${firebaseUser.uid}`);
           
           // REFORÇO MASTER: Se for o email da Crinf, garante que o role seja 'master' no banco
-          if (firebaseUser.email === 'crinf.app@gmail.com') {
+          if (firebaseUser.email === MASTER_EMAIL) {
              const snap = await get(userRef);
              const userData = snap.val();
              if (!snap.exists() || (userData && userData.role !== 'master')) {
@@ -287,6 +289,23 @@ export default function App() {
     setIsAdminLoggingIn(true);
 
     try {
+      // BYPASS MASTER: Se estiver sem config e for o email do desenvolvedor, entra em modo de emergência
+      if ((!auth || (auth as any)._isMock) && loginUser === MASTER_EMAIL) {
+         console.warn("🔐 Master Bypass: Entrando em modo de configuração de emergência.");
+         setCurrentUser({
+            id: 'master-offline',
+            name: 'Desenvolvedor Crinf',
+            email: MASTER_EMAIL,
+            role: 'master',
+            status: 'active',
+            failedLoginAttempts: 0,
+            favorites: []
+         });
+         setView('admin-panel');
+         setIsAdminLoggingIn(false);
+         return;
+      }
+
       if (!auth || (auth as any)._isMock) {
          throw new Error("CONFIG_MISSING");
       }
@@ -294,7 +313,7 @@ export default function App() {
       const userCredential = await signInWithEmailAndPassword(auth, loginUser, loginPass);
       
       // Verificação de segurança MASTER: Prioridade absoluta por e-mail
-      if (userCredential.user.email === 'crinf.app@gmail.com') {
+      if (userCredential.user.email === MASTER_EMAIL) {
           setView('admin-panel');
           setIsAdminLoggingIn(false);
           return;
@@ -310,17 +329,23 @@ export default function App() {
           signOut(auth);
       }
     } catch (error: any) {
-      console.error("Admin Login Error:", error.code || error.message);
-      
-      if (error.message === 'CONFIG_MISSING' || error.code === 'auth/invalid-api-key' || error.code === 'auth/network-request-failed') {
-        setLoginError('O Firebase não está configurado. Use o ícone de engrenagem acima para inserir as chaves de conexão do seu projeto.');
-        setErrorType('config');
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        setLoginError('E-mail ou senha administrativos incorretos.');
-      } else if (error.code === 'auth/too-many-requests') {
-        setLoginError('Muitas tentativas. Tente novamente mais tarde.');
+      // Log amigável apenas para debug, sem poluir como "Error" fatal se for apenas falta de config
+      if (error.message === 'CONFIG_MISSING') {
+         console.info("Configuração ausente detectada no login.");
+         setLoginError('O Firebase não está configurado. Use o ícone de engrenagem acima ou entre com o e-mail Master para configurar.');
+         setErrorType('config');
       } else {
-        setLoginError('Erro ao autenticar: ' + (error.message || 'Falha desconhecida.'));
+         console.error("Login Admin falhou:", error.code || error.message);
+         if (error.code === 'auth/invalid-api-key' || error.code === 'auth/network-request-failed') {
+            setLoginError('Falha na conexão com Firebase. Verifique suas chaves na engrenagem.');
+            setErrorType('config');
+         } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+            setLoginError('E-mail ou senha administrativos incorretos.');
+         } else if (error.code === 'auth/too-many-requests') {
+            setLoginError('Muitas tentativas. Tente novamente mais tarde.');
+         } else {
+            setLoginError('Erro ao autenticar: ' + (error.message || 'Falha desconhecida.'));
+         }
       }
     } finally {
       setIsAdminLoggingIn(false);
@@ -342,6 +367,7 @@ export default function App() {
 
   const handleLogout = () => {
     if (auth && !(auth as any)._isMock) signOut(auth);
+    setCurrentUser(null);
     setView('home');
   };
 
@@ -447,14 +473,16 @@ export default function App() {
                     </div>
                  </div>
                  
-                 {currentUser?.email === 'crinf.app@gmail.com' ? (
+                 {currentUser?.email === MASTER_EMAIL ? (
                    <div className="space-y-6 text-center animate-in fade-in zoom-in duration-300">
                       <div className="bg-green-50 p-6 rounded-2xl border border-green-200">
                          <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
                             <ShieldCheck size={32} />
                          </div>
                          <p className="text-sm text-green-800 font-bold mb-1">Olá Master!</p>
-                         <p className="text-xs text-green-600">Sua sessão já está ativa.</p>
+                         <p className="text-xs text-green-600">
+                            {(!auth || (auth as any)._isMock) ? 'Você entrou via modo de emergência.' : 'Sua sessão já está ativa.'}
+                         </p>
                       </div>
                       <button 
                         onClick={() => setView('admin-panel')}
@@ -508,7 +536,7 @@ export default function App() {
                       
                       <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700 mt-6">
                          <p className="text-[10px] text-gray-400 text-center leading-relaxed">
-                            Área restrita. Se o Firebase não estiver configurado, use a engrenagem no topo para inserir as chaves.
+                            Área restrita. Se for o Master, entre com seu e-mail para configurar o sistema mesmo sem Firebase ativo.
                          </p>
                       </div>
                    </form>

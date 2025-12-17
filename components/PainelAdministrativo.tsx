@@ -1,10 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, AppConfig } from '../types';
 import { 
   Users, Shield, Store, Briefcase, Lock, Unlock, Trash2, 
-  Palette, Image as ImageIcon, Save, LogOut, Zap, Smartphone, Menu, Hammer, ExternalLink, Siren, FileDown, Settings, CheckCircle, FileText, Globe, MapPin, Phone, Instagram, Facebook, ShieldAlert, Mail, AlertTriangle, Info, Clock, Calendar, X, RefreshCw, Upload, Download, Copy, Code, Link as LinkIcon
+  Palette, Image as ImageIcon, Save, LogOut, Zap, Smartphone, Menu, Hammer, ExternalLink, Siren, FileDown, Settings, CheckCircle, FileText, Globe, MapPin, Phone, Instagram, Facebook, ShieldAlert, Mail, AlertTriangle, Info, Clock, Calendar, X, RefreshCw, Upload, Download, Copy, Code, Link as LinkIcon,
+  // Fix: Adding missing imports for Loader2 and Database icons
+  Loader2, Database
 } from 'lucide-react';
-import { db } from '../services/firebase';
+import { db, hasValidConfig } from '../services/firebase';
 import { ref, update, onValue, remove } from 'firebase/database';
 
 interface PainelAdministrativoProps {
@@ -36,6 +39,11 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   useEffect(() => {
+    if (!hasValidConfig || !db || Object.keys(db).length === 0) {
+      setIsLoading(false);
+      return;
+    }
+
     const usersRef = ref(db, 'users');
     const unsubscribe = onValue(usersRef, (snapshot) => {
       const data = snapshot.val();
@@ -57,6 +65,10 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
   const handleSaveConfig = async () => {
     setIsSavingConfig(true);
     try {
+      if (!hasValidConfig) {
+         alert("Não é possível salvar as configurações de cores/nomes sem o Firebase configurado.");
+         return;
+      }
       await onUpdateConfig(configForm);
       alert('Configurações salvas com sucesso!');
     } catch (error) {
@@ -65,6 +77,21 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
     } finally {
       setIsSavingConfig(false);
     }
+  };
+
+  const copyAssetLinks = () => {
+    const json = `[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.oquetempertocl.app",
+      "sha256_cert_fingerprints": ["COLE_SEU_SHA256_AQUI"]
+    }
+  }
+]`;
+    navigator.clipboard.writeText(json);
+    alert("JSON copiado! Cole no arquivo public/.well-known/assetlinks.json");
   };
 
   const getRoleIcon = (role: UserRole) => {
@@ -87,6 +114,14 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
 
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        {!hasValidConfig && (
+           <div className="p-8 text-center bg-orange-50 border-b border-orange-100">
+              <AlertTriangle className="mx-auto text-orange-500 mb-3" size={32} />
+              <p className="text-orange-800 font-bold">Banco de Dados Offline</p>
+              <p className="text-xs text-orange-600 max-w-xs mx-auto mt-1">Conecte o Firebase através da aba "TWA / APK" ou da tela de login para gerenciar usuários.</p>
+           </div>
+        )}
+
         <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
           <h3 className="font-bold text-gray-700 flex items-center gap-2">
             {getRoleIcon(role as UserRole)}
@@ -200,7 +235,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
             <Palette size={18} /> Aparência e Config
           </button>
           <button onClick={() => setActiveTab('tools')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-colors ${activeTab === 'tools' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-            <Hammer size={18} /> Ferramentas
+            <Hammer size={18} /> TWA / APK
           </button>
         </nav>
         <div className="p-4 border-t border-gray-100">
@@ -216,18 +251,38 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
       </div>
 
       <main className="flex-1 md:ml-64 p-4 md:p-8 mt-16 md:mt-0">
+        {!hasValidConfig && (
+           <div className="mb-6 bg-orange-600 text-white p-4 rounded-2xl shadow-lg flex items-center justify-between animate-in slide-in-from-top-4">
+              <div className="flex items-center gap-4">
+                 <div className="bg-orange-500 p-2 rounded-full">
+                    <ShieldAlert size={24} />
+                 </div>
+                 <div>
+                    <h2 className="font-black text-lg">Modo de Emergência</h2>
+                    <p className="text-xs opacity-90 leading-tight">Firebase não configurado. Você só pode gerenciar o TWA e as chaves de conexão.</p>
+                 </div>
+              </div>
+              <button 
+                 onClick={() => setActiveTab('tools')}
+                 className="bg-white text-orange-600 px-4 py-2 rounded-xl text-xs font-black shadow-sm hover:scale-105 transition-transform"
+              >
+                 Configurar Agora
+              </button>
+           </div>
+        )}
+
         <h1 className="text-2xl font-bold text-gray-800 mb-6 capitalize">
           {activeTab === 'dashboard' ? 'Visão Geral' : 
            activeTab === 'pros' ? 'Gerenciar Prestadores' :
            activeTab === 'businesses' ? 'Gerenciar Comércios' :
            activeTab === 'config' ? 'Configurações do App' :
-           activeTab === 'tools' ? 'Ferramentas' :
+           activeTab === 'tools' ? 'Ferramentas TWA' :
            activeTab}
         </h1>
 
         {isLoading ? (
            <div className="flex items-center justify-center h-64 text-gray-500">
-              Carregando dados...
+              <Loader2 className="animate-spin mr-2" /> Carregando dados...
            </div>
         ) : (
           <>
@@ -321,32 +376,78 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
             )}
 
             {activeTab === 'tools' && (
-              <div className="max-w-4xl space-y-8">
-                 <div className="bg-teal-50 border border-teal-200 rounded-xl p-6">
-                    <h2 className="text-xl font-bold text-teal-900 mb-2 flex items-center gap-2">
-                       <Smartphone size={24} /> Instruções para APK/TWA
+              <div className="max-w-4xl space-y-8 animate-in fade-in duration-300">
+                 <div className="bg-blue-600 text-white p-8 rounded-3xl shadow-xl border-4 border-blue-400 relative overflow-hidden">
+                    <div className="relative z-10">
+                       <h2 className="text-2xl font-black mb-2 flex items-center gap-3"><Settings /> Configuração do Firebase</h2>
+                       <p className="text-sm opacity-90 max-w-xl">
+                          Se você está vendo esta tela, é porque o aplicativo ainda não está conectado ao seu banco de dados Firebase. 
+                          Clique no botão abaixo para abrir a janela de configuração.
+                       </p>
+                       <button 
+                         onClick={() => { (window as any).dispatchEvent(new CustomEvent('open-firebase-config')); }}
+                         className="mt-6 bg-white text-blue-600 px-8 py-4 rounded-2xl font-black shadow-lg hover:scale-105 transition-transform flex items-center gap-2"
+                       >
+                          <Settings /> Abrir Janela de Configuração
+                       </button>
+                    </div>
+                    <div className="absolute -bottom-10 -right-10 opacity-10">
+                       <Database size={240} />
+                    </div>
+                 </div>
+
+                 <div className="bg-teal-50 border border-teal-200 rounded-3xl p-8 shadow-sm">
+                    <h2 className="text-xl font-bold text-teal-900 mb-4 flex items-center gap-2">
+                       <Smartphone size={24} /> Configurar TWA (Trusted Web Activity)
                     </h2>
-                    <p className="text-teal-800 mb-4 text-sm">
-                       Para criar o arquivo instalador do Android sem a barra do navegador:
-                    </p>
-                    <div className="space-y-4">
-                       <div className="bg-white p-4 rounded-lg border border-teal-100 shadow-sm text-sm">
-                          <p className="font-bold mb-1">1. Gere o SHA-256 no PWABuilder</p>
-                          <p>Acesse <a href="https://www.pwabuilder.com" target="_blank" className="text-blue-600 underline">PWABuilder.com</a> e use a URL do seu site.</p>
+                    
+                    <div className="grid grid-cols-1 gap-6">
+                       <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm">
+                          <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                             <span className="bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">1</span>
+                             Obter a Chave SHA-256
+                          </h3>
+                          <div className="space-y-3 text-sm text-gray-600">
+                             <p>Para o Android esconder a barra de endereços, você precisa provar que é o dono do app.</p>
+                             <ul className="list-disc pl-5 space-y-2">
+                                <li>Se usa o <strong>PWABuilder</strong>: A chave SHA-256 aparece na tela após você clicar em "Generate APK".</li>
+                                <li>Se o app está na <strong>Play Store</strong>: Vá em <em>Configurações &gt; Integridade do App</em> e procure por "Impressão digital do certificado de assinatura".</li>
+                             </ul>
+                          </div>
                        </div>
-                       <div className="bg-white p-4 rounded-lg border border-teal-100 shadow-sm text-sm font-mono">
-                          <p className="font-bold mb-1 font-sans">2. Edite o Asset Links</p>
-                          <p className="mb-2 font-sans">Atualize o arquivo <code>public/.well-known/assetlinks.json</code> com seu SHA-256.</p>
-                          <pre className="bg-gray-100 p-2 rounded text-[10px] overflow-x-auto">
-{`[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.oquetempertocl.app",
-    "sha256_cert_fingerprints": ["SEU_SHA256_AQUI"]
+
+                       <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm">
+                          <div className="flex justify-between items-center mb-4">
+                             <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                <span className="bg-teal-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs">2</span>
+                                Gerar o arquivo Digital Asset Links
+                             </h3>
+                             <button 
+                                onClick={copyAssetLinks}
+                                className="flex items-center gap-2 text-xs bg-teal-100 text-teal-700 font-bold px-3 py-1.5 rounded-lg hover:bg-teal-200 transition-colors"
+                             >
+                                <Copy size={14} /> Copiar JSON
+                             </button>
+                          </div>
+                          
+                          <p className="text-xs text-gray-500 mb-4">
+                             Edite o arquivo <code className="bg-gray-100 px-1 py-0.5 rounded">public/.well-known/assetlinks.json</code> no seu código-fonte e cole o conteúdo abaixo.
+                          </p>
+
+                          <div className="bg-gray-900 rounded-xl p-6 font-mono text-[11px] text-teal-400 overflow-x-auto border-l-4 border-teal-500">
+                             <pre>{`[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.oquetempertocl.app",
+      "sha256_cert_fingerprints": [
+        "SUA_CHAVE_SHA256_AQUI"
+      ]
+    }
   }
-}]`}
-                          </pre>
+]`}</pre>
+                          </div>
                        </div>
                     </div>
                  </div>

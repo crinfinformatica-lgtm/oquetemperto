@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Lock, Eye, EyeOff, Loader2, Shield, Chrome, AlertTriangle, User, Mail, CheckCircle, Info, Settings, Save, X, ExternalLink, Copy, ShieldCheck, Globe } from 'lucide-react';
 import { signInWithGoogle, auth } from '../services/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
@@ -19,6 +19,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
   const [error, setError] = useState('');
   const [errorType, setErrorType] = useState<'generic' | 'domain' | 'config' | 'not-allowed' | 'redirect'>('generic');
   const [showConfig, setShowConfig] = useState(false);
+
+  useEffect(() => {
+    const handleOpenConfig = () => setShowConfig(true);
+    window.addEventListener('open-firebase-config', handleOpenConfig);
+    return () => window.removeEventListener('open-firebase-config', handleOpenConfig);
+  }, []);
 
   const [configKeys, setConfigKeys] = useState<Record<string, string>>({
     apiKey: localStorage.getItem('FIREBASE_API_KEY') || '',
