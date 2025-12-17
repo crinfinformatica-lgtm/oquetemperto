@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Eye, EyeOff, Loader2, Shield, Chrome, AlertTriangle, User, Mail, CheckCircle, Info, Settings, Save, X, ExternalLink, Copy, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Lock, Eye, EyeOff, Loader2, Shield, Chrome, AlertTriangle, User, Mail, CheckCircle, Info, Settings, Save, X, ExternalLink, Copy, ShieldCheck, Globe } from 'lucide-react';
 import { signInWithGoogle, auth } from '../services/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import AppLogo from './AppLogo';
@@ -17,7 +17,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [errorType, setErrorType] = useState<'generic' | 'domain' | 'config' | 'not-allowed'>('generic');
+  const [errorType, setErrorType] = useState<'generic' | 'domain' | 'config' | 'not-allowed' | 'redirect'>('generic');
   const [showConfig, setShowConfig] = useState(false);
 
   const [configKeys, setConfigKeys] = useState<Record<string, string>>({
@@ -48,6 +48,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
       } else if (errorCode === 'auth/unauthorized-domain' || errorMessage.includes('unauthorized-domain')) {
         setError(`Domínio não autorizado.`);
         setErrorType('domain');
+      } else if (errorMessage.includes('redirect_uri_mismatch') || errorMessage.includes('400')) {
+        setError('Erro de Redirecionamento (Google OAuth)');
+        setErrorType('redirect');
       } else if (errorCode === 'auth/operation-not-allowed') {
         setError('Login Google desativado no Firebase.');
         setErrorType('not-allowed');
@@ -62,7 +65,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Copiado! Agora adicione este domínio no Console do Firebase.");
+    alert("Copiado com sucesso!");
   };
 
   const handleSaveConfig = () => {
@@ -173,14 +176,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
           </div>
 
           {error && (
-            <div className={`mt-8 p-4 rounded-2xl border flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 ${errorType === 'domain' || errorType === 'not-allowed' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/30'}`}>
+            <div className={`mt-8 p-4 rounded-2xl border flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 ${errorType === 'domain' || errorType === 'not-allowed' || errorType === 'redirect' ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-900/30'}`}>
               <div className="flex gap-3">
                 <AlertTriangle size={20} className="shrink-0" />
                 <div className="flex flex-col gap-1">
                   <span className="text-xs font-bold leading-tight">{error}</span>
                   {errorType === 'domain' && (
                     <p className="text-[10px] leading-snug opacity-80 mt-1">
-                      Você precisa autorizar o endereço abaixo no Firebase Console em <strong>Authentication &gt; Settings &gt; Authorized Domains</strong>.
+                      Autorize o endereço abaixo no Firebase Console em: <strong>Authentication &gt; Settings &gt; Authorized Domains</strong>.
+                    </p>
+                  )}
+                  {errorType === 'redirect' && (
+                    <p className="text-[10px] leading-snug opacity-80 mt-1">
+                      O Google barrou o login. Você precisa adicionar a URI de retorno no <strong>Google Cloud Console</strong>.
                     </p>
                   )}
                   {errorType === 'not-allowed' && (
@@ -199,44 +207,47 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
                       <Copy size={16} />
                     </button>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <a 
-                      href="https://console.firebase.google.com/" 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      className="w-full bg-orange-600 text-white py-3 rounded-xl font-black text-sm hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2"
-                    >
-                      Configurar no Firebase <ExternalLink size={14} />
-                    </a>
-                    <button 
-                      onClick={() => window.location.reload()}
-                      className="w-full py-2 text-[10px] font-bold text-orange-600 hover:underline uppercase tracking-widest"
-                    >
-                      Já autorizei, recarregar app
-                    </button>
-                  </div>
+                  <a 
+                    href="https://console.firebase.google.com/" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="w-full bg-orange-600 text-white py-3 rounded-xl font-black text-sm hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2"
+                  >
+                    Configurar no Firebase <ExternalLink size={14} />
+                  </a>
                 </div>
               )}
 
-              {errorType === 'not-allowed' && (
-                <a 
-                  href="https://console.firebase.google.com/" 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  className="w-full bg-orange-600 text-white py-3 rounded-xl font-black text-sm hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2"
-                >
-                  Ativar no Console <ExternalLink size={14} />
-                </a>
+              {errorType === 'redirect' && (
+                <div className="space-y-3">
+                  <div className="bg-white/70 border border-orange-200 p-3 rounded-lg flex flex-col gap-2 shadow-inner">
+                    <span className="text-[9px] font-bold text-orange-500 uppercase tracking-wider">Adicione esta URI no Google Cloud:</span>
+                    <div className="flex items-center justify-between gap-2">
+                       <code className="text-[10px] font-mono font-bold text-orange-900 break-all leading-tight">
+                         https://oquetempertocl.firebaseapp.com/__/auth/handler
+                       </code>
+                       <button onClick={() => copyToClipboard('https://oquetempertocl.firebaseapp.com/__/auth/handler')} className="p-2 bg-orange-100 hover:bg-orange-200 rounded-full text-orange-700 shrink-0">
+                         <Copy size={14} />
+                       </button>
+                    </div>
+                  </div>
+                  <a 
+                    href="https://console.cloud.google.com/apis/credentials" 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="w-full bg-orange-600 text-white py-3 rounded-xl font-black text-sm hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2"
+                  >
+                    Abrir Google Cloud Console <ExternalLink size={14} />
+                  </a>
+                </div>
               )}
 
-              {errorType === 'config' && (
-                <button 
-                  onClick={() => setShowConfig(true)}
-                  className="w-full bg-red-600 text-white py-3 rounded-xl font-black text-sm hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
-                >
-                  Configurar Agora
-                </button>
-              )}
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full py-2 text-[10px] font-bold text-orange-600 hover:underline uppercase tracking-widest text-center"
+              >
+                Já corrigi, tentar novamente
+              </button>
             </div>
           )}
 
