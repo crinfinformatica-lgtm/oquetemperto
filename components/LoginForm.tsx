@@ -65,7 +65,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert("Copiado com sucesso!");
+    alert("URL copiada! Cole-a no campo 'URIs de redirecionamento autorizados' no Google Cloud.");
   };
 
   const handleSaveConfig = () => {
@@ -188,7 +188,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
                   )}
                   {errorType === 'redirect' && (
                     <p className="text-[10px] leading-snug opacity-80 mt-1">
-                      O Google barrou o login. Você precisa adicionar a URI de retorno no <strong>Google Cloud Console</strong>.
+                      O Google barrou o login. Você precisa adicionar as URIs abaixo no <strong>Google Cloud Console</strong>.
                     </p>
                   )}
                   {errorType === 'not-allowed' && (
@@ -220,17 +220,28 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
 
               {errorType === 'redirect' && (
                 <div className="space-y-3">
-                  <div className="bg-white/70 border border-orange-200 p-3 rounded-lg flex flex-col gap-2 shadow-inner">
-                    <span className="text-[9px] font-bold text-orange-500 uppercase tracking-wider">Adicione esta URI no Google Cloud:</span>
-                    <div className="flex items-center justify-between gap-2">
-                       <code className="text-[10px] font-mono font-bold text-orange-900 break-all leading-tight">
+                  <p className="text-[9px] font-bold text-orange-500 uppercase tracking-widest text-center">Adicione estas DUAS URIs no Google Cloud:</p>
+                  
+                  <div className="space-y-2">
+                    <div className="bg-white/70 border border-orange-200 p-2 rounded-lg flex items-center justify-between shadow-inner">
+                       <code className="text-[9px] font-mono font-bold text-orange-900 break-all leading-tight">
                          https://oquetempertocl.firebaseapp.com/__/auth/handler
                        </code>
-                       <button onClick={() => copyToClipboard('https://oquetempertocl.firebaseapp.com/__/auth/handler')} className="p-2 bg-orange-100 hover:bg-orange-200 rounded-full text-orange-700 shrink-0">
-                         <Copy size={14} />
+                       <button onClick={() => copyToClipboard('https://oquetempertocl.firebaseapp.com/__/auth/handler')} className="p-1.5 bg-orange-100 hover:bg-orange-200 rounded-full text-orange-700 shrink-0">
+                         <Copy size={12} />
+                       </button>
+                    </div>
+
+                    <div className="bg-white/70 border border-orange-200 p-2 rounded-lg flex items-center justify-between shadow-inner">
+                       <code className="text-[9px] font-mono font-bold text-orange-900 break-all leading-tight">
+                         https://oquetempertocl.web.app/__/auth/handler
+                       </code>
+                       <button onClick={() => copyToClipboard('https://oquetempertocl.web.app/__/auth/handler')} className="p-1.5 bg-orange-100 hover:bg-orange-200 rounded-full text-orange-700 shrink-0">
+                         <Copy size={12} />
                        </button>
                     </div>
                   </div>
+
                   <a 
                     href="https://console.cloud.google.com/apis/credentials" 
                     target="_blank" 
@@ -246,7 +257,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
                 onClick={() => window.location.reload()}
                 className="w-full py-2 text-[10px] font-bold text-orange-600 hover:underline uppercase tracking-widest text-center"
               >
-                Já corrigi, tentar novamente
+                Já corrigi e salvei, tentar agora
               </button>
             </div>
           )}
