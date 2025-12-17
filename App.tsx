@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -19,14 +18,13 @@ import { identifyServiceCategory } from './services/geminiService';
 import { AppView, ServiceRequest, Professional, User, AppConfig, Review } from './types';
 import { 
   Search, Loader2, Briefcase, Store, ArrowLeft, Eye, EyeOff, MapPin, Star, X, Map, Share2, Moon, Sun, Copy, ShieldAlert, Mail, AlertTriangle, CheckCircle, Info, Download, Smartphone,
-  // Added missing Shield icon import
-  Shield
+  Shield, Key, ShieldCheck, Settings, ExternalLink
 } from 'lucide-react';
 import { ALLOWED_NEIGHBORHOODS } from './constants';
 
 // Firebase Imports
 import { auth, db, hasValidConfig } from './services/firebase';
-import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signOut, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { ref, onValue, update, remove, get, set, query, limitToFirst, startAfter, orderByKey } from 'firebase/database';
 
 const INITIAL_CONFIG: AppConfig = {
@@ -78,6 +76,8 @@ export default function App() {
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [errorType, setErrorType] = useState<'generic' | 'config'>('generic');
+  const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false);
 
   useEffect(() => {
     const checkStandalone = () => {
@@ -113,16 +113,18 @@ export default function App() {
         if (firebaseUser) {
           const userRef = ref(db, `users/${firebaseUser.uid}`);
           
+          // REFORÇO MASTER: Se for o email da Crinf, garante que o role seja 'master' no banco
           if (firebaseUser.email === 'crinf.app@gmail.com') {
              const snap = await get(userRef);
-             if (!snap.exists()) {
-                await set(userRef, {
+             const userData = snap.val();
+             if (!snap.exists() || (userData && userData.role !== 'master')) {
+                await update(userRef, {
                    id: firebaseUser.uid,
-                   name: 'Admin Master',
+                   name: userData?.name || 'Admin Master',
                    email: firebaseUser.email,
                    role: 'master',
                    status: 'active',
-                   createdAt: new Date().toISOString()
+                   createdAt: userData?.createdAt || new Date().toISOString()
                 });
              }
           }
@@ -281,17 +283,60 @@ export default function App() {
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
+    setErrorType('generic');
+    setIsAdminLoggingIn(true);
+
     try {
+      if (!auth || (auth as any)._isMock) {
+         throw new Error("CONFIG_MISSING");
+      }
+
       const userCredential = await signInWithEmailAndPassword(auth, loginUser, loginPass);
+      
+      // Verificação de segurança MASTER: Prioridade absoluta por e-mail
+      if (userCredential.user.email === 'crinf.app@gmail.com') {
+          setView('admin-panel');
+          setIsAdminLoggingIn(false);
+          return;
+      }
+
       const snap = await get(ref(db, `users/${userCredential.user.uid}`));
-      if (snap.exists() && (snap.val().role === 'admin' || snap.val().role === 'master')) {
+      const userData = snap.val();
+      
+      if (userData && (userData.role === 'admin' || userData.role === 'master')) {
           setView('admin-panel');
       } else {
-          setLoginError('Acesso negado.');
+          setLoginError('Acesso negado: Este usuário não possui permissões administrativas.');
           signOut(auth);
       }
     } catch (error: any) {
-      setLoginError('Credenciais inválidas.');
+      console.error("Admin Login Error:", error.code || error.message);
+      
+      if (error.message === 'CONFIG_MISSING' || error.code === 'auth/invalid-api-key' || error.code === 'auth/network-request-failed') {
+        setLoginError('O Firebase não está configurado. Use o ícone de engrenagem acima para inserir as chaves de conexão do seu projeto.');
+        setErrorType('config');
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        setLoginError('E-mail ou senha administrativos incorretos.');
+      } else if (error.code === 'auth/too-many-requests') {
+        setLoginError('Muitas tentativas. Tente novamente mais tarde.');
+      } else {
+        setLoginError('Erro ao autenticar: ' + (error.message || 'Falha desconhecida.'));
+      }
+    } finally {
+      setIsAdminLoggingIn(false);
+    }
+  };
+
+  const handleAdminPasswordReset = async () => {
+    if (!loginUser) {
+      alert("Digite seu e-mail no campo acima primeiro.");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, loginUser);
+      alert("E-mail de redefinição enviado com sucesso.");
+    } catch (err: any) {
+      alert("Erro ao solicitar redefinição: " + err.message);
     }
   };
 
@@ -394,13 +439,80 @@ export default function App() {
         {view === 'admin-login' && (
            <div className="flex-grow flex items-center justify-center p-4">
               <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl p-8 border border-gray-100 dark:border-gray-700 shadow-2xl">
-                 <h2 className="text-2xl font-black mb-6 flex items-center gap-2"><Shield className="text-primary"/> Admin Access</h2>
-                 <form onSubmit={handleAdminLogin} className="space-y-4">
-                    <input type="email" value={loginUser} onChange={e => setLoginUser(e.target.value)} placeholder="Email" className="w-full bg-gray-50 dark:bg-gray-900 border p-4 rounded-xl outline-none focus:ring-2 focus:ring-primary" />
-                    <input type="password" value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="Senha" className="w-full bg-gray-50 dark:bg-gray-900 border p-4 rounded-xl outline-none focus:ring-2 focus:ring-primary" />
-                    {loginError && <p className="text-red-500 text-xs font-bold">{loginError}</p>}
-                    <button type="submit" className="w-full bg-primary text-white p-4 rounded-xl font-black shadow-lg shadow-primary/20">Entrar no Painel</button>
-                 </form>
+                 <div className="flex justify-between items-start mb-6">
+                    <h2 className="text-2xl font-black flex items-center gap-2"><Shield className="text-primary"/> Acesso Admin</h2>
+                    <div className="flex gap-2">
+                       <button onClick={() => setView('login')} className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-primary rounded-xl transition-all" title="Configurar Firebase"><Settings size={20}/></button>
+                       <button onClick={() => setView('home')} className="text-gray-400 hover:text-gray-600 p-2"><X size={20}/></button>
+                    </div>
+                 </div>
+                 
+                 {currentUser?.email === 'crinf.app@gmail.com' ? (
+                   <div className="space-y-6 text-center animate-in fade-in zoom-in duration-300">
+                      <div className="bg-green-50 p-6 rounded-2xl border border-green-200">
+                         <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <ShieldCheck size={32} />
+                         </div>
+                         <p className="text-sm text-green-800 font-bold mb-1">Olá Master!</p>
+                         <p className="text-xs text-green-600">Sua sessão já está ativa.</p>
+                      </div>
+                      <button 
+                        onClick={() => setView('admin-panel')}
+                        className="w-full bg-primary text-white p-4 rounded-xl font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform active:scale-95"
+                      >
+                         <Shield size={20} /> Acessar Painel Master
+                      </button>
+                   </div>
+                 ) : (
+                   <form onSubmit={handleAdminLogin} className="space-y-4">
+                      <div>
+                         <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1 tracking-widest">E-mail Administrativo</label>
+                         <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input type="email" required value={loginUser} onChange={e => setLoginUser(e.target.value)} placeholder="admin@crinf.com" className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 pl-11 pr-4 py-4 rounded-xl outline-none focus:ring-2 focus:ring-primary transition-all" />
+                         </div>
+                      </div>
+                      <div>
+                         <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1 tracking-widest">Senha de Acesso</label>
+                         <div className="relative">
+                            <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input type="password" required value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="••••••••" className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 pl-11 pr-4 py-4 rounded-xl outline-none focus:ring-2 focus:ring-primary transition-all" />
+                         </div>
+                      </div>
+                      
+                      <div className="flex justify-end">
+                         <button type="button" onClick={handleAdminPasswordReset} className="text-[11px] text-primary hover:underline font-bold">Esqueceu a senha?</button>
+                      </div>
+
+                      {loginError && (
+                         <div className={`p-4 rounded-xl text-xs font-bold flex flex-col gap-3 border animate-in slide-in-from-top-2 ${errorType === 'config' ? 'bg-orange-50 text-orange-800 border-orange-200' : 'bg-red-50 text-red-600 border-red-100'}`}>
+                            <div className="flex items-start gap-3">
+                               <AlertTriangle size={18} className="shrink-0 mt-0.5" /> 
+                               <span className="flex-1 leading-tight">{loginError}</span>
+                            </div>
+                            {errorType === 'config' && (
+                               <button 
+                                 type="button" 
+                                 onClick={() => setView('login')} 
+                                 className="w-full bg-orange-600 text-white p-3 rounded-lg font-black flex items-center justify-center gap-2 hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/20"
+                               >
+                                  <Settings size={16} /> Abrir Configurações
+                               </button>
+                            )}
+                         </div>
+                      )}
+                      
+                      <button type="submit" disabled={isAdminLoggingIn} className="w-full bg-primary hover:bg-primary-dark text-white p-4 rounded-xl font-black shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
+                         {isAdminLoggingIn ? <Loader2 className="animate-spin" size={20} /> : <><Shield size={20} /> Entrar no Painel</>}
+                      </button>
+                      
+                      <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700 mt-6">
+                         <p className="text-[10px] text-gray-400 text-center leading-relaxed">
+                            Área restrita. Se o Firebase não estiver configurado, use a engrenagem no topo para inserir as chaves.
+                         </p>
+                      </div>
+                   </form>
+                 )}
               </div>
            </div>
         )}
