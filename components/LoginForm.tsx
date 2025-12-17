@@ -180,12 +180,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
                   <span className="text-xs font-bold leading-tight">{error}</span>
                   {errorType === 'domain' && (
                     <p className="text-[10px] leading-snug opacity-80 mt-1">
-                      Você precisa autorizar o endereço abaixo no Firebase Console em <strong>Authentication > Settings > Authorized Domains</strong>.
+                      Você precisa autorizar o endereço abaixo no Firebase Console em <strong>Authentication &gt; Settings &gt; Authorized Domains</strong>.
                     </p>
                   )}
                   {errorType === 'not-allowed' && (
                     <p className="text-[10px] leading-snug opacity-80 mt-1">
-                      Ative o provedor <strong>Google</strong> em <strong>Authentication > Sign-in method</strong>.
+                      Ative o provedor <strong>Google</strong> em <strong>Authentication &gt; Sign-in method</strong>.
                     </p>
                   )}
                 </div>
