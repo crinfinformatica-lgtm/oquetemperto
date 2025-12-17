@@ -3,7 +3,7 @@ import { User, UserRole, AppConfig } from '../types';
 import { 
   Users, Shield, Store, Briefcase, Lock, Unlock, Trash2, 
   Palette, Image as ImageIcon, Save, LogOut, Zap, Smartphone, Menu, Hammer, ExternalLink, Siren, FileDown, Settings, CheckCircle, FileText, Globe, MapPin, Phone, Instagram, Facebook, ShieldAlert, Mail, AlertTriangle, Info, Clock, Calendar, X, RefreshCw, Upload, Download, Copy, Code, Link as LinkIcon,
-  Loader2, Database, HelpCircle, ChevronRight
+  Loader2, Database, HelpCircle, ChevronRight, FileSearch
 } from 'lucide-react';
 import { db, hasValidConfig } from '../services/firebase';
 import { ref, update, onValue, remove } from 'firebase/database';
@@ -95,11 +95,14 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
   };
 
   const copyAssetLinks = () => {
-    if (!userSha256) {
+    const sha = userSha256.trim();
+    if (!sha) {
        alert("Digite ou cole seu SHA-256 primeiro!");
        return;
     }
-    navigator.clipboard.writeText(getAssetLinksJson(userSha256));
+    // Remove espaços ou prefixos comuns se o usuário colou errado
+    const cleanSha = sha.replace("SHA-256: ", "").replace(/\s/g, "");
+    navigator.clipboard.writeText(getAssetLinksJson(cleanSha));
     alert("Código copiado! Agora cole no arquivo 'public/.well-known/assetlinks.json' do seu projeto.");
   };
 
@@ -360,75 +363,92 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
             )}
 
             {activeTab === 'tools' && (
-              <div className="max-w-4xl space-y-8 animate-in fade-in duration-300">
+              <div className="max-w-4xl space-y-8 animate-in fade-in duration-300 pb-20">
                  <div className="bg-teal-50 border border-teal-200 rounded-3xl p-8 shadow-sm">
                     <h2 className="text-xl font-bold text-teal-900 mb-6 flex items-center gap-2">
-                       <Smartphone size={24} /> Guia para Leigos: Onde achar o SHA-256?
+                       <Smartphone size={24} /> Ajuda para configurar o TWA
                     </h2>
                     
                     <div className="space-y-6">
-                       {/* Passo 1 */}
+                       {/* DICA DE OURO: SITE PWABUILDER */}
+                       <div className="bg-white p-6 rounded-2xl border-2 border-primary shadow-md flex gap-4">
+                          <div className="w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center font-bold flex-shrink-0 animate-pulse">!</div>
+                          <div>
+                             <h3 className="font-bold text-primary mb-1 text-lg">Dica: A chave está no SITE!</h3>
+                             <p className="text-sm text-gray-700">
+                                Logo após você clicar em <strong>"Generate"</strong> no PWABuilder, ele mostra uma tela chamada <strong>"Next Steps"</strong>. 
+                                Role essa tela para baixo até encontrar a seção <strong>"Digital Asset Links"</strong>. 
+                                O SHA-256 estará lá, pronto para ser copiado.
+                             </p>
+                          </div>
+                       </div>
+
+                       {/* DICA 2: O ARQUIVO HTML */}
                        <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm flex gap-4">
                           <div className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">1</div>
                           <div>
-                             <h3 className="font-bold text-gray-800 mb-1">Acesse o PWABuilder</h3>
+                             <h3 className="font-bold text-gray-800 mb-1">Sobre o arquivo readme.html</h3>
                              <p className="text-sm text-gray-600">
-                                Digite seu site e clique em <strong>Package for Stores</strong> &gt; <strong>Android (Generate)</strong>.
+                                Esse arquivo é apenas um link. Abra ele no seu navegador (clique duas vezes), e ele vai te levar para uma página do GitHub. 
+                                Lá, procure pelo termo <strong>"SHA-256 Fingerprint"</strong>.
                              </p>
                           </div>
                        </div>
 
-                       {/* Passo 2 */}
+                       {/* DICA 3: ONDE COLAR */}
                        <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm flex gap-4">
                           <div className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">2</div>
                           <div className="flex-1">
-                             <h3 className="font-bold text-gray-800 mb-1">Onde está a chave?</h3>
+                             <h3 className="font-bold text-gray-800 mb-1">Gerador Automático</h3>
                              <p className="text-sm text-gray-600 mb-4">
-                                Após o download do ZIP terminar, abra o arquivo <code>readme.txt</code> que vem dentro dele ou procure na tela final por <strong>"Signing Key"</strong> ou <strong>"SHA-256 Fingerprint"</strong>. É um código grande com letras e números.
+                                Se você achou o código (uma sequência de letras e números com dois pontos, ex: <code>AB:23:CD...</code>), cole ele aqui:
                              </p>
                              
                              <div className="bg-teal-50 p-4 rounded-xl border border-teal-200">
-                                <label className="block text-xs font-bold text-teal-800 mb-2 uppercase">Cole aqui sua chave SHA-256:</label>
+                                <label className="block text-xs font-bold text-teal-800 mb-2 uppercase">Cole o SHA-256 aqui:</label>
                                 <input 
                                    type="text" 
-                                   placeholder="Ex: AB:23:CD:45:..." 
+                                   placeholder="AB:CD:EF:..." 
                                    value={userSha256}
                                    onChange={e => setUserSha256(e.target.value)}
-                                   className="w-full p-3 border border-teal-300 rounded-lg font-mono text-xs focus:ring-2 focus:ring-teal-500 outline-none"
+                                   className="w-full p-3 border border-teal-300 rounded-lg font-mono text-xs focus:ring-2 focus:ring-teal-500 outline-none uppercase"
                                 />
                              </div>
-                          </div>
-                       </div>
 
-                       {/* Passo 3 */}
-                       <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm flex gap-4">
-                          <div className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">3</div>
-                          <div className="flex-1">
-                             <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-bold text-gray-800">Crie o arquivo Asset Links</h3>
+                             <div className="mt-4 flex justify-between items-center">
+                                <p className="text-[10px] text-gray-400">Clique no botão ao lado após colar.</p>
                                 <button 
                                    onClick={copyAssetLinks}
                                    className="flex items-center gap-2 text-xs bg-teal-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors shadow-md"
                                 >
-                                   <Copy size={14} /> Copiar Código Pronto
+                                   <Copy size={14} /> Copiar JSON Pronto
                                 </button>
                              </div>
-                             <p className="text-xs text-gray-500 mb-4">
-                                Este é o código que deve estar no arquivo <code>public/.well-known/assetlinks.json</code> do seu site:
-                             </p>
 
-                             <div className="bg-gray-900 rounded-xl p-6 font-mono text-[11px] text-teal-400 overflow-x-auto border-l-4 border-teal-500">
+                             <div className="mt-4 bg-gray-900 rounded-xl p-4 font-mono text-[10px] text-teal-400 overflow-x-auto border-l-4 border-teal-500">
                                 <pre>{getAssetLinksJson(userSha256)}</pre>
                              </div>
+                          </div>
+                       </div>
+
+                       {/* FALLBACK: GOOGLE PLAY */}
+                       <div className="bg-white p-6 rounded-2xl border border-teal-100 shadow-sm flex gap-4">
+                          <div className="w-10 h-10 bg-gray-600 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">3</div>
+                          <div>
+                             <h3 className="font-bold text-gray-800 mb-1">Se nada der certo (Google Play)</h3>
+                             <p className="text-sm text-gray-600">
+                                Se você já enviou o app para a Google Play Store, você pode pegar essa chave lá dentro: 
+                                <strong>Configuração &gt; Integridade do App</strong>. Procure por "Certificado de assinatura de app".
+                             </p>
                           </div>
                        </div>
                     </div>
 
                     <div className="mt-8 p-4 bg-yellow-50 rounded-2xl border border-yellow-200 flex gap-3">
                        <HelpCircle className="text-yellow-600 shrink-0" />
-                       <p className="text-xs text-yellow-800 leading-tight">
-                          <strong>Dica Final:</strong> Se você não encontrar a chave no arquivo ZIP, vá no seu <strong>Google Play Console</strong> &gt; <strong>Integridade do App</strong> e copie a chave SHA-256 de lá. Ela é a única que o Google aceita para sumir com a barra de endereços.
-                       </p>
+                       <div className="text-xs text-yellow-800 leading-tight">
+                          <strong>Importante:</strong> Sem essa chave SHA-256 configurada corretamente no arquivo <code>assetlinks.json</code> do seu site, o seu app Android sempre terá aquela barra de endereço cinza em cima.
+                       </div>
                     </div>
                  </div>
               </div>
