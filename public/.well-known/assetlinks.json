@@ -4,9 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "com.oquetempertocl.app",
-      "sha256_cert_fingerprints": [
-        "COLE_AQUI_SEU_SHA256_DO_PWABUILDER"
-      ]
+      "sha256_cert_fingerprints": ["A6:53:DE:A1:AC:E5:F6:20:76:A8:EC:9D:13:56:46:72:5C:8F:F8:B3:BF:B9:A5:3B:02:33:D5:67:10:CA:D9:19"]
     }
   }
 ]
