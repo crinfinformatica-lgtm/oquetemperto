@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Lock, Eye, EyeOff, Loader2, Shield, Chrome, AlertTriangle, User, Mail, CheckCircle, Info } from 'lucide-react';
+import { ArrowLeft, Lock, Eye, EyeOff, Loader2, Shield, Chrome, AlertTriangle, User, Mail, CheckCircle, Info, Settings, Save, X } from 'lucide-react';
 import { signInWithGoogle, auth } from '../services/firebase'; // Import auth
 import { sendPasswordResetEmail } from 'firebase/auth'; // Import reset function
 import AppLogo from './AppLogo';
@@ -24,6 +24,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
   const [isResetMode, setIsResetMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
+  // New State for Config Keys Mode
+  const [showConfig, setShowConfig] = useState(false);
+  const [configKeys, setConfigKeys] = useState({
+     apiKey: localStorage.getItem('FIREBASE_API_KEY') || '',
+     authDomain: localStorage.getItem('FIREBASE_AUTH_DOMAIN') || '',
+     databaseURL: localStorage.getItem('FIREBASE_DATABASE_URL') || '',
+     projectId: localStorage.getItem('FIREBASE_PROJECT_ID') || '',
+     storageBucket: localStorage.getItem('FIREBASE_STORAGE_BUCKET') || '',
+     messagingSenderId: localStorage.getItem('FIREBASE_MESSAGING_SENDER_ID') || '',
+     appId: localStorage.getItem('FIREBASE_APP_ID') || '',
+     geminiKey: localStorage.getItem('API_KEY') || ''
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -44,12 +57,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
       // App.tsx handles the auth state change redirect
     } catch (err: any) {
       console.error("Google Auth Error:", err);
-      if (err.code === 'auth/unauthorized-domain') {
-        setError('Este domínio não está autorizado no Firebase. Por favor, use Login com E-mail/Senha.');
+      if (err === "Firebase keys missing") {
+        setError('Chaves do Firebase não encontradas.');
+        setShowConfig(true); // Open config automatically
+      } else if (err.code === 'auth/unauthorized-domain') {
+        const currentDomain = window.location.hostname;
+        setError(`Domínio "${currentDomain}" não autorizado. Adicione-o no Firebase Console > Authentication > Settings > Domínios Autorizados.`);
       } else if (err.code === 'auth/popup-closed-by-user') {
         setError('O login foi cancelado.');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        setError('A janela de login foi fechada. Tente novamente.');
       } else {
-        setError('Erro ao entrar com Google. Tente novamente ou use E-mail/Senha.');
+        setError(`Erro ao entrar com Google (${err.code || 'Desconhecido'}). Tente E-mail/Senha.`);
       }
       setIsLoading(false);
     }
@@ -87,6 +106,91 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
       setIsLoading(false);
     }
   };
+
+  const handleSaveConfig = () => {
+     localStorage.setItem('FIREBASE_API_KEY', configKeys.apiKey);
+     localStorage.setItem('FIREBASE_AUTH_DOMAIN', configKeys.authDomain);
+     localStorage.setItem('FIREBASE_DATABASE_URL', configKeys.databaseURL);
+     localStorage.setItem('FIREBASE_PROJECT_ID', configKeys.projectId);
+     localStorage.setItem('FIREBASE_STORAGE_BUCKET', configKeys.storageBucket);
+     localStorage.setItem('FIREBASE_MESSAGING_SENDER_ID', configKeys.messagingSenderId);
+     localStorage.setItem('FIREBASE_APP_ID', configKeys.appId);
+     localStorage.setItem('API_KEY', configKeys.geminiKey);
+     
+     alert("Chaves salvas! A página será recarregada.");
+     window.location.reload();
+  };
+
+  if (showConfig) {
+     return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                 <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <Settings className="text-primary" /> Configuração Manual
+                 </h2>
+                 <button onClick={() => setShowConfig(false)} className="text-gray-500 hover:text-gray-800">
+                    <X size={24} />
+                 </button>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg mb-6 text-sm text-yellow-800">
+                 <p className="font-bold flex items-center gap-2"><AlertTriangle size={16}/> Atenção</p>
+                 <p className="mt-1">
+                    Parece que as variáveis de ambiente não foram carregadas corretamente ou você está em um ambiente de pré-visualização sem arquivo .env. 
+                 </p>
+                 <p className="mt-2">
+                    Cole suas chaves do Firebase abaixo para usar o app. Elas serão salvas no seu navegador (LocalStorage).
+                 </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">API Key *</label>
+                    <input type="text" value={configKeys.apiKey} onChange={e => setConfigKeys({...configKeys, apiKey: e.target.value})} className="w-full p-2 border rounded font-mono text-sm" placeholder="AIzaSy..." />
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Auth Domain *</label>
+                    <input type="text" value={configKeys.authDomain} onChange={e => setConfigKeys({...configKeys, authDomain: e.target.value})} className="w-full p-2 border rounded font-mono text-sm" placeholder="project.firebaseapp.com" />
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Database URL *</label>
+                    <input type="text" value={configKeys.databaseURL} onChange={e => setConfigKeys({...configKeys, databaseURL: e.target.value})} className="w-full p-2 border rounded font-mono text-sm" placeholder="https://project.firebaseio.com" />
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Project ID *</label>
+                    <input type="text" value={configKeys.projectId} onChange={e => setConfigKeys({...configKeys, projectId: e.target.value})} className="w-full p-2 border rounded font-mono text-sm" />
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Storage Bucket</label>
+                    <input type="text" value={configKeys.storageBucket} onChange={e => setConfigKeys({...configKeys, storageBucket: e.target.value})} className="w-full p-2 border rounded font-mono text-sm" />
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Messaging Sender ID</label>
+                    <input type="text" value={configKeys.messagingSenderId} onChange={e => setConfigKeys({...configKeys, messagingSenderId: e.target.value})} className="w-full p-2 border rounded font-mono text-sm" />
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">App ID</label>
+                    <input type="text" value={configKeys.appId} onChange={e => setConfigKeys({...configKeys, appId: e.target.value})} className="w-full p-2 border rounded font-mono text-sm" />
+                 </div>
+                 <div className="md:col-span-2 border-t pt-4 mt-2">
+                    <label className="block text-xs font-bold text-purple-600 uppercase mb-1">Gemini API Key (Opcional - IA)</label>
+                    <input type="text" value={configKeys.geminiKey} onChange={e => setConfigKeys({...configKeys, geminiKey: e.target.value})} className="w-full p-2 border border-purple-200 bg-purple-50 rounded font-mono text-sm" placeholder="AIzaSy..." />
+                 </div>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                 <button onClick={handleSaveConfig} className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+                    <Save size={18} /> Salvar e Recarregar
+                 </button>
+                 <button onClick={() => setShowConfig(false)} className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-lg">
+                    Cancelar
+                 </button>
+              </div>
+           </div>
+        </div>
+     );
+  }
 
   // --- RENDER: RESET PASSWORD MODE ---
   if (isResetMode) {
@@ -182,13 +286,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md">
-        <button 
-          onClick={onBack}
-          className="flex items-center text-gray-500 hover:text-gray-800 mb-6 font-medium transition-colors"
-        >
-          <ArrowLeft size={18} className="mr-2" />
-          Voltar
-        </button>
+        <div className="flex justify-between items-center mb-6">
+          <button 
+            onClick={onBack}
+            className="flex items-center text-gray-500 hover:text-gray-800 font-medium transition-colors"
+          >
+            <ArrowLeft size={18} className="mr-2" />
+            Voltar
+          </button>
+          {/* Debug Config Button */}
+          <button onClick={() => setShowConfig(true)} className="p-2 text-gray-300 hover:text-gray-600" title="Configurar API">
+             <Settings size={18} />
+          </button>
+        </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
@@ -274,6 +384,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
               <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 font-medium flex items-start gap-2">
                 <AlertTriangle size={16} className="mt-0.5 flex-shrink-0" />
                 <span>{error}</span>
+                {error.includes("Chaves do Firebase") && (
+                   <button type="button" onClick={() => setShowConfig(true)} className="ml-auto underline text-xs">Configurar</button>
+                )}
               </div>
             )}
 
