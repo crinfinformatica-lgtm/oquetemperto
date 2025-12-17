@@ -2,18 +2,12 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, Auth } from "firebase/auth";
 import { getDatabase, Database } from "firebase/database";
+import { FIREBASE_KEYS } from "./apiKeys";
 
-// --- CONFIGURAÇÃO DO FIREBASE (MANUAL) ---
-// Cole as chaves do seu projeto Firebase abaixo, dentro das aspas.
-export const firebaseConfig = {
-  apiKey: "AIzaSyAxzB5f3Vk1oa0NqCgRn-5G4kEUrGblvwk",
-  authDomain: "oquetempertocl.firebaseapp.com",
-  databaseURL: "https://oquetempertocl-default-rtdb.firebaseio.com",
-  projectId: "oquetempertocl",
-  storageBucket: "oquetempertocl.firebasestorage.app",
-  messagingSenderId: "1029721075176",
-  appId: "1:1029721075176:web:e08ad0c8a5b6090dc0085d"
-};
+// --- CONFIGURAÇÃO DO FIREBASE ---
+// As chaves agora são carregadas de services/apiKeys.ts (que lê do .env ou Vercel)
+// Isso remove o aviso de segurança de "Chave Exposta" do código fonte.
+export const firebaseConfig = FIREBASE_KEYS;
 
 let app;
 let auth: Auth;
@@ -30,7 +24,7 @@ const hasValidConfig =
 
 if (!hasValidConfig) {
   // Modo de segurança para o app não travar totalmente se as chaves estiverem vazias
-  console.warn("⚠️ AVISO: Configuração do Firebase incompleta em services/firebase.ts (databaseURL obrigatória).");
+  console.warn("⚠️ AVISO: Configuração do Firebase incompleta (falta .env ou configuração na Vercel).");
   
   // Mock objects (simulação) para a interface carregar e exibir o aviso
   auth = {
@@ -54,7 +48,7 @@ if (!hasValidConfig) {
      googleProvider = new GoogleAuthProvider();
   } catch (error) {
      console.error("❌ Erro fatal ao inicializar Firebase:", error);
-     console.warn("Verifique se todas as chaves (projectId, databaseURL) estão corretas em services/firebase.ts");
+     console.warn("Verifique se todas as chaves (projectId, databaseURL) estão corretas nas variáveis de ambiente.");
      // Fallback para evitar crash
      db = {} as unknown as Database;
      auth = { currentUser: null, _isMock: true } as unknown as Auth;
@@ -64,7 +58,7 @@ if (!hasValidConfig) {
 // Função de Login
 export const signInWithGoogle = () => {
     if (!hasValidConfig || !auth || (auth as any)._isMock) {
-        alert("Erro: Configure as chaves do Firebase (incluindo databaseURL) no arquivo services/firebase.ts para fazer login.");
+        alert("Erro: Configure as chaves do Firebase (incluindo databaseURL) no arquivo .env para fazer login.");
         return Promise.reject("Firebase keys missing");
     }
     return signInWithPopup(auth, googleProvider);

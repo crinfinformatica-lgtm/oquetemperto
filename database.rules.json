@@ -1,10 +1,27 @@
 
 {
   "rules": {
-    ".read": true,
-    ".write": true,
+    ".read": false,
+    ".write": false,
+    "config": {
+      ".read": true,
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')"
+    },
     "users": {
-      ".indexOn": ["role", "neighborhood", "category"]
+      ".read": true,
+      ".indexOn": [
+        "role",
+        "neighborhood",
+        "category"
+      ],
+      "$uid": {
+        ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')",
+        ".validate": "newData.hasChildren(['name', 'role']) && ((root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master') || (!data.exists() && newData.child('role').val() != 'admin' && newData.child('role').val() != 'master') || (data.exists() && newData.child('role').val() === data.child('role').val()))"
+      }
+    },
+    "admin_notifications": {
+      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')",
+      ".write": "auth != null"
     }
   }
 }
