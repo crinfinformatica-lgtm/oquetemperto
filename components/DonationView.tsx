@@ -26,6 +26,22 @@ const DonationView: React.FC<DonationViewProps> = ({ config, onBack }) => {
     }
   };
 
+  const getImageSizeClass = (scale: string | undefined) => {
+    switch (scale) {
+      case 'sm': return 'w-24 h-24 md:w-32 md:h-32';
+      case 'lg': return 'w-48 h-48 md:w-64 md:h-64';
+      case 'xl': return 'w-64 h-64 md:w-80 md:h-80';
+      case 'md':
+      default: return 'w-32 h-32 md:w-48 md:h-48';
+    }
+  };
+
+  const headerStyles = project.transparentBg 
+    ? { backgroundColor: 'white', color: '#111827' }
+    : { backgroundColor: project.headerColor || '#ef4444', color: 'white' };
+
+  const iconColor = project.transparentBg ? "text-red-500" : "fill-white";
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 animate-in fade-in slide-in-from-bottom-4">
       <div className="max-w-xl mx-auto">
@@ -38,10 +54,19 @@ const DonationView: React.FC<DonationViewProps> = ({ config, onBack }) => {
         </button>
 
         <div className="bg-white rounded-[2.5rem] shadow-xl overflow-hidden border border-red-50">
-          <div className="bg-gradient-to-br from-red-500 to-pink-600 p-10 text-center text-white relative">
-             <Heart className="mx-auto mb-4 animate-bounce fill-white" size={64} />
+          <div 
+            className="p-10 text-center relative flex flex-col items-center justify-center transition-colors duration-500"
+            style={headerStyles}
+          >
+             {project.imageUrl ? (
+               <div className={`${getImageSizeClass(project.imageScale)} mx-auto mb-4 bg-white/10 rounded-[2rem] p-2 flex items-center justify-center overflow-hidden backdrop-blur-sm shadow-inner transition-all duration-500`}>
+                  <img src={project.imageUrl} alt={project.name} className="w-full h-full object-contain" />
+               </div>
+             ) : (
+               <Heart className={`mx-auto mb-4 animate-bounce ${iconColor}`} size={64} />
+             )}
              <h2 className="text-3xl font-black uppercase tracking-tight">{project.name}</h2>
-             <p className="opacity-90 mt-2 text-sm font-medium italic">"Fazendo a diferença na vida de quem mais precisa"</p>
+             <p className={`opacity-90 mt-2 text-sm font-medium italic ${project.transparentBg ? 'text-gray-500' : 'text-white'}`}>"Fazendo a diferença na vida de quem mais precisa"</p>
           </div>
 
           <div className="p-8 space-y-8">

@@ -122,6 +122,10 @@ export interface SocialProject {
   description: string;
   pixKey: string;
   instagram: string;
+  imageUrl?: string;
+  transparentBg?: boolean;
+  headerColor?: string;
+  imageScale?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export interface AppConfig {

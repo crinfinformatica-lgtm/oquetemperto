@@ -6,7 +6,7 @@ import {
   Palette, Save, LogOut, Zap, ListPlus, Megaphone, Share2, 
   RefreshCw, X, ArrowUp, ArrowDown, Globe, Edit, Star, 
   Calendar, Phone, Info, Smartphone, ExternalLink, QrCode, Database,
-  Bus, Download, Copy, Heart, Upload, FileText, Type, Image as ImageIcon
+  Bus, Download, Copy, Heart, Upload, FileText, Type, Image as ImageIcon, Maximize
 } from 'lucide-react';
 import { db, hasValidConfig } from '../services/firebase';
 import { ref, onValue, set, get } from 'firebase/database';
@@ -105,6 +105,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
         const b64 = await processImage(e.target.files[0]);
         if (target === 'logo') setConfigForm({ ...configForm, logoUrl: b64 });
         if (target === 'campaign') setConfigForm({ ...configForm, campaign: { ...configForm.campaign!, imageUrl: b64 } });
+        if (target === 'social') setConfigForm({ ...configForm, socialProject: { ...configForm.socialProject!, imageUrl: b64 } });
       } catch (err) {
         alert("Erro ao processar imagem.");
       }
@@ -449,7 +450,7 @@ Saiba mais no App O Que Tem Perto!`;
                                <button onClick={() => removeUtilityItem(cat.id, item.id)} className="bg-red-50 text-red-400 p-3 rounded-xl hover:bg-red-100"><Trash2 size={16} className="mx-auto"/></button>
                             </div>
                          ))}
-                         <button onClick={() => addUtilityItem(cat.id)} className="w-full py-4 border-2 border-dashed border-gray-200 text-gray-400 rounded-2xl font-black text-xs uppercase hover:bg-gray-50 transition-all">+ Adicionar Item em {cat.title}</button>
+                         <button onClick={() => addUtilityItem(cat.id)} className="w-full py-4 border-2 border-dashed border-orange-200 text-gray-400 rounded-2xl font-black text-xs uppercase hover:bg-gray-50 transition-all">+ Adicionar Item em {cat.title}</button>
                       </div>
                    </div>
                 );
@@ -483,14 +484,57 @@ Saiba mais no App O Que Tem Perto!`;
            <div className="space-y-8 animate-in fade-in">
               <div className="bg-white rounded-[2rem] p-8 border border-red-50 shadow-sm max-w-2xl">
                  <div className="flex justify-between items-center mb-8">
-                    <h3 className="text-xl font-black text-red-600 uppercase tracking-tight flex items-center gap-2"><Heart size={24} fill="currentColor"/> Projeto Social</h3>
+                    <h3 className="text-xl font-black text-red-600 uppercase tracking-tight flex items-center gap-2"><Heart size={24} fill="currentColor"/> Projeto Social (Doação)</h3>
                     <button onClick={handleShareCampaign} className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all"><Share2 size={20}/></button>
                  </div>
-                 <div className="space-y-4">
-                    <label className="flex items-center gap-2 font-black text-gray-700 uppercase text-xs mb-4"><input type="checkbox" checked={configForm.socialProject?.active} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, active: e.target.checked}})} className="w-5 h-5 rounded border-gray-300 text-red-500" /> PROJETO ATIVO NA HOME</label>
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Chave Pix (E-mail)</label><input type="text" value={configForm.socialProject?.pixKey} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, pixKey: e.target.value}})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold outline-none" /></div>
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Instagram (sem @)</label><input type="text" value={configForm.socialProject?.instagram} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, instagram: e.target.value}})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold outline-none" /></div>
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Descrição do Projeto</label><textarea rows={3} value={configForm.socialProject?.description} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, description: e.target.value}})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-medium text-sm outline-none resize-none" /></div>
+                 <div className="space-y-6">
+                    <label className="flex items-center gap-2 font-black text-gray-700 uppercase text-xs"><input type="checkbox" checked={configForm.socialProject?.active} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, active: e.target.checked}})} className="w-5 h-5 rounded border-gray-300 text-red-500" /> PROJETO ATIVO NA HOME</label>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-6">
+                       <div className="flex flex-col gap-4">
+                          <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Imagem do Projeto</label>
+                          <div className={`w-full h-40 rounded-2xl overflow-hidden border flex items-center justify-center relative ${configForm.socialProject?.transparentBg ? 'bg-transparent' : 'bg-gray-100'}`}>
+                             {configForm.socialProject?.imageUrl ? <img src={configForm.socialProject.imageUrl} className="w-full h-full object-contain" /> : <Heart size={40} className="text-gray-300"/>}
+                             <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-[8px] font-black uppercase">Preview</div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                             <label className="cursor-pointer bg-red-50 text-red-600 text-[10px] font-black uppercase text-center py-3 rounded-xl hover:bg-red-100 transition-all">
+                                Mudar Foto
+                                <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'social')} />
+                             </label>
+                             <div className="bg-gray-50 border rounded-xl p-2">
+                                <label className="block text-[8px] font-black text-gray-400 uppercase mb-1">Tamanho da Foto</label>
+                                <select 
+                                   value={configForm.socialProject?.imageScale || 'md'} 
+                                   onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, imageScale: e.target.value as any}})}
+                                   className="w-full text-[10px] font-bold outline-none bg-transparent"
+                                >
+                                   <option value="sm">Pequeno</option>
+                                   <option value="md">Médio</option>
+                                   <option value="lg">Grande</option>
+                                   <option value="xl">Extra Grande</option>
+                                </select>
+                             </div>
+                          </div>
+                          <div className="flex gap-4">
+                             <label className="flex items-center gap-2 text-[10px] font-black text-gray-600 cursor-pointer uppercase">
+                                <input type="checkbox" checked={configForm.socialProject?.transparentBg} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, transparentBg: e.target.checked}})} className="w-4 h-4 rounded border-gray-300 text-red-500" />
+                                Fundo Transp.
+                             </label>
+                             <div className="flex items-center gap-2">
+                                <label className="text-[10px] font-black text-gray-600 uppercase">Cor Cabeçalho</label>
+                                <input type="color" value={configForm.socialProject?.headerColor || '#ef4444'} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, headerColor: e.target.value}})} className="w-6 h-6 border-0 p-0 bg-transparent cursor-pointer" />
+                             </div>
+                          </div>
+                       </div>
+                       <div className="space-y-4">
+                          <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Nome do Projeto</label><input type="text" value={configForm.socialProject?.name} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, name: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" /></div>
+                          <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Instagram (sem @)</label><input type="text" value={configForm.socialProject?.instagram} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, instagram: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" /></div>
+                       </div>
+                    </div>
+
+                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Chave Pix (E-mail)</label><input type="text" value={configForm.socialProject?.pixKey} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, pixKey: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" /></div>
+                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Descrição do Projeto</label><textarea rows={3} value={configForm.socialProject?.description} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, description: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl font-medium text-sm outline-none resize-none" /></div>
                  </div>
               </div>
 
