@@ -162,7 +162,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col justify-center items-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-md">
         <div className="flex justify-between items-center mb-8">
           <button onClick={onBack} className="flex items-center text-gray-500 hover:text-primary font-bold transition-colors">
             <ArrowLeft size={18} className="mr-2" /> Voltar
@@ -270,7 +270,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onBack, onLogin, onRegisterClick,
                   <div className="bg-white/80 border border-orange-200 p-4 rounded-2xl">
                     <p className="text-[10px] font-black text-orange-700 uppercase mb-2 tracking-widest">ONDE COLAR:</p>
                     <p className="text-[11px] text-gray-600 mb-3">
-                      No Console do Firebase: <strong>Authentication > Settings > Authorized Domains</strong>. Adicione o domínio que você copiou acima.
+                      No Console do Firebase: <strong>Authentication &gt; Settings &gt; Authorized Domains</strong>. Adicione o domínio que você copiou acima.
                     </p>
                     <a 
                       href="https://console.firebase.google.com/" 

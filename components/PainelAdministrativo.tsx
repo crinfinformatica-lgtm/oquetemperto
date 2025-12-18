@@ -177,7 +177,10 @@ Saiba mais no App O Que Tem Perto!`;
   };
 
   const handleDownloadLogo = () => {
-    if (!configForm.logoUrl) return;
+    if (!configForm.logoUrl) {
+       alert("Não há logo configurada para download.");
+       return;
+    }
     const a = document.createElement('a');
     a.href = configForm.logoUrl;
     a.download = 'logo_app_transparente.png';
@@ -245,9 +248,14 @@ Saiba mais no App O Que Tem Perto!`;
 
   const filteredUsers = localUsers.filter(u => userFilter === 'all' ? true : u.role === userFilter);
 
+  // Fallback para ordem das utilidades se estiver vazia
+  const utilityOrder = configForm.utilityOrder && configForm.utilityOrder.length > 0 
+    ? configForm.utilityOrder 
+    : ['emergencia', 'utilidade', 'saude', 'bus', 'social', 'prefeitura'];
+
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Modal de Edição de Usuário (Mantido) */}
+      {/* Modal de Edição de Usuário */}
       {editingUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="bg-white dark:bg-gray-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -391,6 +399,7 @@ Saiba mais no App O Que Tem Perto!`;
                  </div>
 
                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b pb-1">Textos da Interface</h4>
                     <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Título do Cabeçalho (Header)</label><input type="text" value={configForm.appName} onChange={e => setConfigForm({...configForm, appName: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm font-bold" /></div>
                     <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Subtítulo do Cabeçalho</label><input type="text" value={configForm.headerSubtitle || ''} onChange={e => setConfigForm({...configForm, headerSubtitle: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm" /></div>
                     <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Texto Principal do Rodapé (Footer)</label><input type="text" value={configForm.footerText || ''} onChange={e => setConfigForm({...configForm, footerText: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm" /></div>
@@ -403,7 +412,7 @@ Saiba mais no App O Que Tem Perto!`;
         {/* UTIL TAB */}
         {activeTab === 'util' && (
           <div className="space-y-10 animate-in fade-in">
-             {configForm.utilityOrder?.map((sectionId) => {
+             {utilityOrder.map((sectionId) => {
                 if (sectionId === 'bus') {
                    return (
                       <div key="bus" className="bg-white rounded-[2rem] p-8 border border-orange-100 shadow-sm">
@@ -412,7 +421,7 @@ Saiba mais no App O Que Tem Perto!`;
                             <div className="flex gap-2"><button onClick={() => moveSection('bus', 'up')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowUp size={18}/></button><button onClick={() => moveSection('bus', 'down')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowDown size={18}/></button></div>
                          </div>
                          <div className="space-y-4">
-                            {configForm.busLines?.map(line => (
+                            {(configForm.busLines || []).map(line => (
                                <div key={line.id} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-orange-50/50 p-4 rounded-2xl">
                                   <input type="text" value={line.name} onChange={e => editBusLine(line.id, 'name', e.target.value)} className="p-3 bg-white border border-orange-100 rounded-xl text-sm font-bold outline-none" placeholder="Nome da Linha" />
                                   <input type="text" value={line.url} onChange={e => editBusLine(line.id, 'url', e.target.value)} className="p-3 bg-white border border-orange-100 rounded-xl text-sm outline-none" placeholder="Link (URL)" />
@@ -423,7 +432,7 @@ Saiba mais no App O Que Tem Perto!`;
                       </div>
                    );
                 }
-                const cat = configForm.utilityCategories?.find(c => c.id === sectionId);
+                const cat = (configForm.utilityCategories || []).find(c => c.id === sectionId);
                 if (!cat) return null;
                 return (
                    <div key={cat.id} className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
@@ -462,8 +471,8 @@ Saiba mais no App O Que Tem Perto!`;
               <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
                  <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-8 flex items-center gap-2"><Share2 size={24} className="text-primary"/> Links de Divulgação</h3>
                  <div className="space-y-6">
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase mb-1">URL de Compartilhamento</p><div className="flex items-center justify-between gap-3"><code className="text-sm font-bold text-gray-800 truncate">{configForm.shareUrl}</code><button onClick={() => { navigator.clipboard.writeText(configForm.shareUrl!); alert('Copiado!'); }} className="p-3 bg-white text-primary rounded-xl shadow-sm border border-gray-100 hover:scale-110 active:scale-90 transition-all"><Copy size={16}/></button></div></div>
-                    <div className="p-4 bg-pink-50 rounded-2xl border border-pink-100"><p className="text-[10px] font-black text-pink-400 uppercase mb-1">Instagram Principal</p><div className="flex items-center justify-between gap-3"><code className="text-sm font-bold text-pink-800 truncate">{configForm.instagramUrl}</code><button onClick={() => window.open(configForm.instagramUrl, '_blank')} className="p-3 bg-white text-pink-600 rounded-xl shadow-sm border border-pink-100 hover:scale-110 active:scale-90 transition-all"><ExternalLink size={16}/></button></div></div>
+                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase mb-1">URL de Compartilhamento</p><div className="flex items-center justify-between gap-3"><code className="text-sm font-bold text-gray-800 truncate">{configForm.shareUrl || window.location.href}</code><button onClick={() => { navigator.clipboard.writeText(configForm.shareUrl || window.location.href); alert('Copiado!'); }} className="p-3 bg-white text-primary rounded-xl shadow-sm border border-gray-100 hover:scale-110 active:scale-90 transition-all"><Copy size={16}/></button></div></div>
+                    <div className="p-4 bg-pink-50 rounded-2xl border border-pink-100"><p className="text-[10px] font-black text-pink-400 uppercase mb-1">Instagram Principal</p><div className="flex items-center justify-between gap-3"><code className="text-sm font-bold text-pink-800 truncate">{configForm.instagramUrl || '@crinfinformatica'}</code><button onClick={() => window.open(configForm.instagramUrl || 'https://instagram.com/crinfinformatica', '_blank')} className="p-3 bg-white text-pink-600 rounded-xl shadow-sm border border-pink-100 hover:scale-110 active:scale-90 transition-all"><ExternalLink size={16}/></button></div></div>
                  </div>
               </div>
            </div>
