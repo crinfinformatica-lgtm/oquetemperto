@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -5,6 +6,7 @@ import RequestForm from './components/RequestForm';
 import ResultsList from './components/ResultsList';
 import ProfessionalDetails from './components/ProfessionalDetails';
 import RegisterForm from './components/RegisterForm';
+import RegisterSelection from './components/RegisterSelection';
 import LoginForm from './components/LoginForm';
 import PainelAdministrativo from './components/PainelAdministrativo';
 import UserProfile from './components/UserProfile';
@@ -14,18 +16,18 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import WelcomeModal from './components/WelcomeModal';
 import InstallBanner from './components/InstallBanner'; 
 import InstallTutorial from './components/InstallTutorial';
+import DonationView from './components/DonationView';
 import { identifyServiceCategory } from './services/geminiService';
 import { AppView, ServiceRequest, Professional, User, AppConfig, Review } from './types';
 import { 
-  Search, Loader2, Briefcase, Store, ArrowLeft, Eye, EyeOff, MapPin, Star, X, Map, Share2, Moon, Sun, Copy, ShieldAlert, Mail, AlertTriangle, CheckCircle, Info, Download, Smartphone,
-  Shield, Key, ShieldCheck, Settings, ExternalLink
+  Search, Loader2, Briefcase, Store, ArrowLeft, MapPin, Star, X, Share2, Download, Smartphone, Info, HelpCircle, Shield, Megaphone, ExternalLink, Navigation
 } from 'lucide-react';
 import { ALLOWED_NEIGHBORHOODS } from './constants';
 
 // Firebase Imports
 import { auth, db, hasValidConfig } from './services/firebase';
-import { onAuthStateChanged, signOut, signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { ref, onValue, update, remove, get, set, query, limitToFirst, startAfter, orderByKey } from 'firebase/database';
+import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from 'firebase/auth';
+import { ref, onValue, update, remove, get, query, limitToFirst, startAfter, orderByKey } from 'firebase/database';
 
 const INITIAL_CONFIG: AppConfig = {
   appName: 'O Que Tem Perto?',
@@ -33,8 +35,94 @@ const INITIAL_CONFIG: AppConfig = {
   primaryColor: '#0047AB',
   accentColor: '#DC143C',
   tertiaryColor: '#166534',
+  fontFamily: 'Inter',
   pixKey: 'crinf.negocios@gmail.com',
-  supportEmail: 'crinf.app@gmail.com'
+  supportEmail: 'crinf.app@gmail.com',
+  instagramUrl: 'https://www.instagram.com/crinfinformatica/',
+  shareUrl: 'https://oquetempertocl.web.app',
+  apkUrl: '',
+  footerText: 'Desenvolvido pela',
+  footerSubtext: 'Todos os direitos reservados',
+  utilityOrder: ['emergencia', 'utilidade', 'saude', 'bus', 'social', 'prefeitura'],
+  busLines: [
+    { id: 'b1', name: 'Águas Claras', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' },
+    { id: 'b2', name: 'Francisco Gorski', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' },
+    { id: 'b3', name: 'Moradias Bom Jesus', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' },
+    { id: 'b4', name: 'Três Rios', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' },
+    { id: 'b5', name: 'Consultar outras linhas', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' }
+  ],
+  utilityCategories: [
+    {
+      id: 'emergencia',
+      title: '🚨 Emergência',
+      items: [
+        { id: 'e1', name: 'SAMU', number: '192', description: 'Urgência e Emergência' },
+        { id: 'e2', name: 'Bombeiros', number: '193', description: 'Combate a incêndio' },
+        { id: 'e3', name: 'Polícia Militar', number: '190', description: 'Ocorrências' },
+        { id: 'e4', name: 'Guarda Municipal', number: '153', description: 'Segurança Local' },
+        { id: 'e5', name: 'Delegacia Civil', number: '(41) 3291-6100', description: 'Plantão Policial' },
+        { id: 'e6', name: 'Defesa Civil', number: '199', description: 'Desastres e Alagamentos' }
+      ]
+    },
+    {
+      id: 'utilidade',
+      title: '💡 Água e Luz',
+      items: [
+        { id: 'u1', name: 'Cocel (Energia)', number: '0800 7272 120', description: 'Falta de Luz / Serviços' },
+        { id: 'u2', name: 'Sanepar (Água)', number: '0800 200 0115', description: 'Falta de Água / Esgoto' }
+      ]
+    },
+    {
+      id: 'saude',
+      title: '🏥 Saúde e Hospitais',
+      items: [
+        { id: 's1', name: 'UPA 24h', number: '(41) 3391-5000', description: 'Urgência e Emergência' },
+        { id: 's2', name: 'Hosp. do Rocio', number: '(41) 3136-2000', description: 'Hospital Geral' },
+        { id: 's3', name: 'Hosp. São Lucas', number: '(41) 3291-2300', description: 'Partic. e Convênios' },
+        { id: 's4', name: 'Hosp. Infantil', number: '(41) 3391-8100', description: 'Waldemar Monastier' },
+        { id: 's5', name: 'UBS Águas Claras', number: '(41) 3391-5121', description: 'Posto de Saúde' },
+        { id: 's6', name: 'UBS Três Rios', number: '(41) 3391-5126', description: 'Posto de Saúde' },
+        { id: 's7', name: 'Sec. de Saúde', number: '(41) 3391-5000', description: 'Secretaria Municipal' }
+      ]
+    },
+    {
+      id: 'social',
+      title: '🤝 Social e Apoio',
+      items: [
+        { id: 'so1', name: 'Conselho Tutelar', number: '(41) 3391-5095', description: 'Proteção à criança' },
+        { id: 'so2', name: 'CRAS Meliane', number: '(41) 3391-5037', description: 'Atendimento Social' },
+        { id: 'so3', name: 'Assistência Social', number: '(41) 3391-5000', description: 'Secretaria Municipal' },
+        { id: 'so4', name: 'Narcodenúncia', number: '181', description: 'Anônimo e Sigiloso' }
+      ]
+    },
+    {
+      id: 'prefeitura',
+      title: '🏢 Prefeitura & Órgãos',
+      items: [
+        { id: 'p1', name: 'Prefeitura', number: '(41) 3391-5000', description: 'Atendimento Geral' },
+        { id: 'p2', name: 'Ag. do Trabalhador', number: '(41) 3292-1262', description: 'Vagas de Emprego' },
+        { id: 'p3', name: 'Fórum', number: '(41) 3391-4750', description: 'Justiça Estadual' },
+        { id: 'p4', name: 'Cartório Eleitoral', number: '(41) 3292-2300', description: 'Zona 009 / Título' },
+        { id: 'p5', name: 'Detran / Ciretran', number: '(41) 3361-1212', description: 'CNH e Veículos' },
+        { id: 'p6', name: 'Sec. de Obras', number: '(41) 3391-5151', description: 'Viação e Obras' },
+        { id: 'p7', name: 'Meio Ambiente', number: '(41) 3391-5151', description: 'Denúncias e Coleta' },
+        { id: 'p8', name: 'Sala do Empreendedor', number: '(41) 3391-5150', description: 'Apoio ao MEI' }
+      ]
+    }
+  ],
+  campaign: {
+    active: false,
+    title: '',
+    description: '',
+    imageUrl: ''
+  },
+  socialProject: {
+    active: true,
+    name: 'Projeto Gotinhas de Amor',
+    description: 'Capelania hospitalar dentro do hospital infantil de Campo Largo/PR. Contribua com este trabalho social!',
+    pixKey: 'crinf.projetosocial@gmail.com',
+    instagram: 'gotinhasdeamorcapelania'
+  }
 };
 
 const MASTER_EMAIL = 'crinf.app@gmail.com';
@@ -45,41 +133,35 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false); 
   const [showInstallTutorial, setShowInstallTutorial] = useState(false);
 
-  // PWA Install State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
-  // Search State
   const [searchTab, setSearchTab] = useState<'pro' | 'business'>('pro');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchNeighborhood, setSearchNeighborhood] = useState('');
   const [searchHighRated, setSearchHighRated] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   const [selectedSubCategory, setSelectedSubCategory] = useState('');
-  
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
 
-  // Pagination State
   const [lastLoadedKey, setLastLoadedKey] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [currentRequest, setCurrentRequest] = useState<ServiceRequest | null>(null);
 
   const [isMatching, setIsMatching] = useState(false);
-
-  // Admin / User State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // Admin Login State
-  const [loginUser, setLoginUser] = useState('');
-  const [loginPass, setLoginPass] = useState('');
-  const [loginError, setLoginError] = useState('');
-  const [errorType, setErrorType] = useState<'generic' | 'config'>('generic');
-  const [isAdminLoggingIn, setIsAdminLoggingIn] = useState(false);
+  useEffect(() => {
+    if (view === 'admin-login' && currentUser && (currentUser.role === 'master' || currentUser.role === 'admin')) {
+      setView('admin-panel');
+    }
+  }, [view, currentUser]);
 
   useEffect(() => {
     const checkStandalone = () => {
@@ -135,14 +217,15 @@ export default function App() {
             if (data) {
               if (data.status === 'banned') {
                 signOut(auth);
-                alert("Sua conta foi suspensa por violação dos termos.");
+                alert("Sua conta foi suspensa.");
                 return;
               }
-              setCurrentUser({ 
+              const loggedUser = { 
                 ...data, 
                 id: firebaseUser.uid,
                 favorites: data.favorites || [] 
-              });
+              };
+              setCurrentUser(loggedUser);
             } else {
               setCurrentUser({
                 id: firebaseUser.uid,
@@ -168,68 +251,94 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!hasValidConfig || !db || Object.keys(db).length === 0) {
-      return;
-    }
-
+    if (!hasValidConfig || !db || Object.keys(db).length === 0) return;
     const configRef = ref(db, 'config');
     const unsubscribe = onValue(configRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) setAppConfig(data);
-    }, (error) => {
-      console.error("Erro ao ler configurações do banco.");
+      if (data) {
+        setAppConfig({
+          ...INITIAL_CONFIG,
+          ...data,
+          utilityCategories: data.utilityCategories || INITIAL_CONFIG.utilityCategories,
+          busLines: data.busLines || INITIAL_CONFIG.busLines,
+          socialProject: data.socialProject || INITIAL_CONFIG.socialProject,
+          utilityOrder: data.utilityOrder || INITIAL_CONFIG.utilityOrder
+        });
+      }
     });
     return () => unsubscribe();
   }, []);
 
+  const handleStandardLogin = async (e: string, p: string) => {
+    if (!auth || (auth as any)._isMock) return;
+    try {
+      await signInWithEmailAndPassword(auth, e, p);
+      if (view === 'login') {
+         setView('home');
+      }
+    } catch (err: any) {
+      throw err;
+    }
+  };
+
+  const handleManualLocation = () => {
+    setIsLocating(true);
+    if (!navigator.geolocation) {
+      alert("Seu navegador não suporta geolocalização.");
+      setIsLocating(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        alert("Localização obtida com sucesso! A busca priorizará o que estiver mais próximo de você.");
+        setIsLocating(false);
+      },
+      (error) => {
+        const errorMessage = error.message || "Erro desconhecido ao acessar GPS.";
+        console.error("Geo error:", errorMessage);
+        alert(`Não foi possível obter sua localização: ${errorMessage}. Verifique as permissões do seu navegador ou celular.`);
+        setIsLocating(false);
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
   const performSearch = async (request: ServiceRequest, isNewSearch: boolean = true) => {
      if (!hasValidConfig || !db || Object.keys(db).length === 0) return;
-
      if (isNewSearch) {
         setProfessionals([]);
         setLastLoadedKey(null);
         setHasMore(true);
         setCurrentRequest(request);
      }
-
-     const PAGE_SIZE = 50; // Increased page size to account for local filtering
+     const PAGE_SIZE = 50; 
      const usersRef = ref(db, 'users');
-     let dbQuery;
-
-     dbQuery = query(usersRef, orderByKey(), limitToFirst(PAGE_SIZE));
+     let dbQuery = query(usersRef, orderByKey(), limitToFirst(PAGE_SIZE));
      if (!isNewSearch && lastLoadedKey) {
         dbQuery = query(usersRef, orderByKey(), startAfter(lastLoadedKey), limitToFirst(PAGE_SIZE));
      }
-
      try {
         const snapshot = await get(dbQuery);
         if (snapshot.exists()) {
            const data = snapshot.val();
            const entries = Object.entries(data);
            const results: Professional[] = [];
-
            entries.forEach(([key, u]: [string, any]) => {
-              // 1. Filter out system roles and banned
-              if (u.role === 'admin' || u.role === 'master' || u.status === 'banned') return;
-              
-              // 2. Filter by Search Tab (Role) - CRITICAL FIX
+              if (!u.role || u.role === 'admin' || u.role === 'master' || u.role === 'client' || u.status === 'banned') return;
               if (request.searchType === 'pro' && u.role !== 'pro') return;
               if (request.searchType === 'business' && u.role !== 'business') return;
-
-              // 3. Filter by Neighborhood (if specified)
               if (request.neighborhood && u.neighborhood !== request.neighborhood) return;
-
-              // 4. Filter by Category/SubCategory match (Basic text filtering)
-              const searchLower = searchQuery.toLowerCase();
-              const catLower = (u.category || '').toLowerCase();
-              const nameLower = (u.name || '').toLowerCase();
-              const detectedLower = (request.detectedCategory || '').toLowerCase();
-
-              // If there's a search query, check if name or category matches
-              if (searchQuery.trim() !== '') {
-                 const matchesKeyword = nameLower.includes(searchLower) || catLower.includes(searchLower) || catLower.includes(detectedLower);
-                 if (!matchesKeyword) return;
+              
+              const searchTerm = (searchQuery || '').toLowerCase().trim();
+              if (searchTerm !== '') {
+                 const nameLower = (u.name || '').toLowerCase();
+                 const catLower = (u.category || '').toLowerCase();
+                 const matches = nameLower.includes(searchTerm) || catLower.includes(searchTerm);
+                 if (!matches) return;
               }
+
+              const isHighlighted = u.highlightExpiresAt ? new Date(u.highlightExpiresAt) > new Date() : false;
 
               results.push({
                  id: key,
@@ -238,163 +347,69 @@ export default function App() {
                  rating: 5.0, 
                  reviewCount: u.reviews ? Object.keys(u.reviews).length : 0,
                  bio: u.businessDescription || '',
-                 avatarUrl: u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || 'U'}&background=random`,
+                 avatarUrl: u.avatarUrl || `https://ui-avatars.com/api/?name=${u.name || 'U'}`,
                  distance: u.neighborhood || 'Campo Largo',
                  neighborhood: u.neighborhood || 'Campo Largo',
                  tags: u.category ? [u.category] : [],
                  reviews: u.reviews ? Object.values(u.reviews) : [],
-                 isHighlighted: u.highlightExpiresAt ? new Date(u.highlightExpiresAt) > new Date() : false
+                 isHighlighted: isHighlighted,
+                 address: u.address,
+                 phone: u.phone,
+                 socials: u.socials
               });
            });
 
-           setProfessionals(prev => isNewSearch ? results : [...prev, ...results]);
+           const sortedResults = [...results].sort((a, b) => {
+              if (a.isHighlighted && !b.isHighlighted) return -1;
+              if (!a.isHighlighted && b.isHighlighted) return 1;
+              return 0;
+           });
+
+           setProfessionals(prev => isNewSearch ? sortedResults : [...prev, ...sortedResults]);
            setLastLoadedKey(entries[entries.length - 1][0]);
-           
-           // If we didn't get enough results after local filtering, and the DB still has more data, 
-           // technically we should keep fetching, but for now we rely on the larger PAGE_SIZE.
            if (entries.length < PAGE_SIZE) setHasMore(false);
         } else {
            setHasMore(false);
         }
-     } catch (err) {
-        console.error("Search Error:", err);
-        setHasMore(false);
-     } finally {
-        setIsLoadingMore(false);
-        setIsMatching(false);
-     }
+     } catch (err) { setHasMore(false); } finally { setIsLoadingMore(false); setIsMatching(false); }
   };
 
   const handleHeroSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsMatching(true);
-    let finalQuery = searchQuery || (searchTab === 'pro' ? 'Destaques de Serviços' : 'Destaques de Comércio');
+    let finalQuery = searchQuery || (searchTab === 'pro' ? 'Serviços Gerais' : 'Lojas e Comércio');
     
-    // Use AI to classify the search term for better matching results
     const result = await identifyServiceCategory(finalQuery);
-    
     const request: ServiceRequest = {
        categoryId: result.categoryId,
-       subCategory: finalQuery, 
+       subCategory: searchQuery || (searchTab === 'pro' ? 'Todos os Serviços' : 'Todo o Comércio'), 
        description: '',
        location: "Campo Largo",
        urgency: "N/A",
        searchType: searchTab, 
        neighborhood: searchNeighborhood,
        onlyHighRated: searchHighRated,
-       detectedCategory: result.subCategory // The Portuguese label like "Pizzaria"
+       detectedCategory: result.subCategory
     };
-
-    setSelectedSubCategory(finalQuery); 
+    setSelectedSubCategory(request.subCategory); 
     await performSearch(request, true);
     setView('results');
   };
 
+  const handleSelectProfessional = (pro: Professional) => {
+    setSelectedProfessional(pro);
+    setView('details');
+  };
+
   const handleToggleFavorite = (proId: string) => {
-    if (!currentUser) {
-      setView('login'); 
-      return;
-    }
+    if (!currentUser) { setView('login'); return; }
     const currentFavs = currentUser.favorites || [];
     const isFav = currentFavs.includes(proId);
     const newFavorites = isFav ? currentFavs.filter(id => id !== proId) : [...currentFavs, proId];
     update(ref(db, `users/${currentUser.id}`), { favorites: newFavorites });
   };
 
-  const handleUserLogin = async (email: string, pass: string) => {
-    if (!auth || (auth as any)._isMock) throw new Error("Firebase não configurado.");
-    await signInWithEmailAndPassword(auth, email, pass);
-    setView('home');
-  };
-
-  const handleAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError('');
-    setErrorType('generic');
-    setIsAdminLoggingIn(true);
-
-    try {
-      // BYPASS MASTER SEGURANÇA: Exige PIN apenas se o banco estiver realmente offline
-      if ((!auth || (auth as any)._isMock) && loginUser === MASTER_EMAIL) {
-         const pin = prompt("🔐 MODO DE EMERGÊNCIA: Digite seu PIN de recuperação (definido pelo desenvolvedor):");
-         if (pin !== "2024") { // PIN Exemplo, mude conforme necessário
-            setLoginError('PIN de recuperação inválido.');
-            setIsAdminLoggingIn(false);
-            return;
-         }
-         
-         setCurrentUser({
-            id: 'master-offline',
-            name: 'Desenvolvedor Crinf',
-            email: MASTER_EMAIL,
-            role: 'master',
-            status: 'active',
-            failedLoginAttempts: 0,
-            favorites: []
-         });
-         setView('admin-panel');
-         setIsAdminLoggingIn(false);
-         return;
-      }
-
-      if (!auth || (auth as any)._isMock) {
-         throw new Error("CONFIG_MISSING");
-      }
-
-      const userCredential = await signInWithEmailAndPassword(auth, loginUser, loginPass);
-      
-      if (userCredential.user.email === MASTER_EMAIL) {
-          setView('admin-panel');
-          setIsAdminLoggingIn(false);
-          return;
-      }
-
-      const snap = await get(ref(db, `users/${userCredential.user.uid}`));
-      const userData = snap.val();
-      
-      if (userData && (userData.role === 'admin' || userData.role === 'master')) {
-          setView('admin-panel');
-      } else {
-          setLoginError('Acesso negado: Este usuário não possui permissões administrativas.');
-          signOut(auth);
-      }
-    } catch (error: any) {
-      if (error.message === 'CONFIG_MISSING') {
-         setLoginError('O Banco de Dados está desconectado. Use o e-mail Master para recuperar a conexão ou clique na engrenagem acima.');
-         setErrorType('config');
-      } else {
-         if (error.code === 'auth/invalid-api-key' || error.code === 'auth/network-request-failed') {
-            setLoginError('Falha na conexão com Firebase. Verifique suas chaves na engrenagem.');
-            setErrorType('config');
-         } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-            setLoginError('E-mail ou senha administrativos incorretos.');
-         } else {
-            setLoginError('Erro ao autenticar: ' + (error.message || 'Falha desconhecida.'));
-         }
-      }
-    } finally {
-      setIsAdminLoggingIn(false);
-    }
-  };
-
-  const handleAdminPasswordReset = async () => {
-    if (!loginUser) {
-      alert("Digite seu e-mail no campo acima primeiro.");
-      return;
-    }
-    try {
-      await sendPasswordResetEmail(auth, loginUser);
-      alert("E-mail de redefinição enviado com sucesso.");
-    } catch (err: any) {
-      alert("Erro ao solicitar redefinição: " + err.message);
-    }
-  };
-
-  const handleLogout = () => {
-    if (auth && !(auth as any)._isMock) signOut(auth);
-    setCurrentUser(null);
-    setView('home');
-  };
+  const handleLogout = () => { if (auth && !(auth as any)._isMock) signOut(auth); setCurrentUser(null); setView('home'); };
 
   const handleInstall = async () => {
     if (deferredPrompt) {
@@ -404,12 +419,32 @@ export default function App() {
         setDeferredPrompt(null);
         setShowInstallBanner(false);
       }
+    } else {
+       setShowInstallTutorial(true);
+    }
+  };
+
+  const handleDownloadApk = () => {
+    if (appConfig.apkUrl) {
+      window.open(appConfig.apkUrl, '_blank');
+      setShowInstallTutorial(true);
+    }
+  };
+
+  const handleAddReview = async (proId: string, review: Review) => {
+    if (!db) return;
+    const proReviewsRef = ref(db, `users/${proId}/reviews/${review.id}`);
+    await update(proReviewsRef, review);
+    if (selectedProfessional && selectedProfessional.id === proId) {
+      const updatedReviews = [...(selectedProfessional.reviews || []), review];
+      setSelectedProfessional({ ...selectedProfessional, reviews: updatedReviews, reviewCount: updatedReviews.length });
     }
   };
 
   return (
     <div className="flex flex-col min-h-screen font-sans text-gray-900 bg-gray-50 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
       <style>{`
+        body { font-family: ${appConfig.fontFamily || 'Inter'}, sans-serif !important; }
         .text-primary { color: ${appConfig.primaryColor} !important; }
         .bg-primary { background-color: ${appConfig.primaryColor} !important; }
         .text-accent { color: ${appConfig.accentColor} !important; }
@@ -425,13 +460,47 @@ export default function App() {
         {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
         {showInstallBanner && <InstallBanner onInstall={handleInstall} onDismiss={() => setShowInstallBanner(false)} onHelp={() => setShowInstallTutorial(true)} />}
         {showInstallTutorial && <InstallTutorial onClose={() => setShowInstallTutorial(false)} />}
+        {showAbout && <PrivacyPolicy onClose={() => setShowAbout(false)} appName={appConfig.appName} />}
         
         {view === 'home' && (
           <div className="flex-grow flex flex-col items-center justify-center p-4">
              <div className="mb-8 p-4 bg-white rounded-full shadow-2xl border-4 border-gray-50">
-                <AppLogo className="w-28 h-28 md:w-36 md:h-36" />
+                {appConfig.logoUrl ? (
+                   <img src={appConfig.logoUrl} className="w-28 h-28 md:w-36 md:h-36 object-contain" alt="Logo" />
+                ) : (
+                   <AppLogo className="w-28 h-28 md:w-36 md:h-36" />
+                )}
              </div>
-             <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 md:p-6">
+
+             {appConfig.campaign?.active && (
+                <div className="w-full max-w-2xl bg-gradient-to-br from-purple-600 to-primary rounded-[2.5rem] shadow-2xl overflow-hidden mb-10 text-white relative group animate-in slide-in-from-top-4 duration-500">
+                   <div className="flex flex-col md:flex-row h-full">
+                      {appConfig.campaign.imageUrl && (
+                         <div className="md:w-1/3 h-48 md:h-auto overflow-hidden relative">
+                            <img src={appConfig.campaign.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20 md:hidden"></div>
+                         </div>
+                      )}
+                      <div className="flex-1 p-8 flex flex-col justify-center">
+                         <div className="flex items-center gap-2 mb-3">
+                            <Megaphone size={16} className="text-purple-200 animate-bounce" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-100">Campanha em Destaque</span>
+                         </div>
+                         <h3 className="text-2xl font-black mb-3 leading-tight">{appConfig.campaign.title}</h3>
+                         <p className="text-sm text-purple-50/80 mb-6 line-clamp-3 leading-relaxed">{appConfig.campaign.description}</p>
+                         
+                         {appConfig.campaign.link && (
+                            <a href={appConfig.campaign.link} target="_blank" className="inline-flex items-center gap-2 bg-white text-primary font-black px-6 py-3 rounded-2xl shadow-lg transition-all hover:scale-105 active:scale-95 text-xs w-fit">
+                               {appConfig.campaign.label || 'Ver Mais'}
+                               <ExternalLink size={14} />
+                            </a>
+                         )}
+                      </div>
+                   </div>
+                </div>
+             )}
+
+             <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 md:p-6 mb-8">
                 <div className="flex gap-2 p-1 bg-gray-50 dark:bg-gray-900 rounded-2xl mb-6">
                    <button onClick={() => setSearchTab('pro')} className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all ${searchTab === 'pro' ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-md' : 'text-gray-400'}`}>Serviços</button>
                    <button onClick={() => setSearchTab('business')} className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all ${searchTab === 'business' ? 'bg-white dark:bg-gray-700 text-tertiary shadow-md' : 'text-gray-400'}`}>Comércio</button>
@@ -439,143 +508,68 @@ export default function App() {
                 <form onSubmit={handleHeroSearch} className="space-y-4">
                    <div className="relative">
                       <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                      <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="O que você procura?" className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-primary transition-all" />
+                      <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={searchTab === 'pro' ? "O que você precisa?" : "Qual loja procura?"} className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-primary transition-all" />
                    </div>
-                   <div className="relative">
-                      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                      <select value={searchNeighborhood} onChange={(e) => setSearchNeighborhood(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-primary transition-all appearance-none">
-                         <option value="">Em toda a região</option>
-                         {ALLOWED_NEIGHBORHOODS.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
+                   
+                   <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                        <select value={searchNeighborhood} onChange={(e) => setSearchNeighborhood(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-primary transition-all appearance-none">
+                          <option value="">Em toda a região</option>
+                          {ALLOWED_NEIGHBORHOODS.map(b => <option key={b} value={b}>{b}</option>)}
+                        </select>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={handleManualLocation}
+                        disabled={isLocating}
+                        className={`p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-center transition-all ${isLocating ? 'text-primary bg-primary/10' : 'text-gray-400 bg-gray-50 dark:bg-gray-900 hover:text-primary shadow-sm active:scale-95'}`}
+                        title="Usar minha localização atual (Ligar GPS)"
+                      >
+                         {isLocating ? <Loader2 className="animate-spin" size={20} /> : <Navigation size={20} />}
+                      </button>
                    </div>
+
                    <button type="submit" disabled={isMatching} className="w-full bg-accent hover:bg-accent-dark text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95 disabled:opacity-50">
                      {isMatching ? <Loader2 className="animate-spin" /> : <Search />}
                      Buscar Agora
                    </button>
                 </form>
+
+                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                   <button onClick={handleInstall} className="w-full bg-blue-50 text-blue-700 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-blue-100 transition-all active:scale-95 shadow-sm">
+                      <Smartphone size={20} /> Instalar no Celular
+                   </button>
+                   {appConfig.apkUrl && (
+                      <button onClick={handleDownloadApk} className="w-full bg-green-50 text-green-700 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-green-100 transition-all active:scale-95 shadow-sm">
+                        <Download size={20} /> Baixar APK Android
+                      </button>
+                   )}
+                </div>
              </div>
-             <PublicUtilities />
+             
+             <PublicUtilities config={appConfig} />
           </div>
         )}
 
-        {view === 'login' && <LoginForm onBack={() => setView('home')} onLogin={handleUserLogin} onRegisterClick={() => setView('register-selection')} onAdminClick={() => setView('admin-login')} onGuestClick={() => setView('home')} />}
-        {view === 'results' && <ResultsList professionals={professionals} subCategory={selectedSubCategory} onBack={() => setView('home')} onSelectProfessional={setSelectedProfessional} currentUser={currentUser} onToggleFavorite={handleToggleFavorite} onLoadMore={() => performSearch(currentRequest!, false)} hasMore={hasMore} isLoadingMore={isLoadingMore} />}
-        {view === 'details' && selectedProfessional && <ProfessionalDetails professional={selectedProfessional} currentUser={currentUser} onBack={() => setView('results')} onAddReview={() => {}} onToggleFavorite={handleToggleFavorite} />}
+        {view === 'login' && <LoginForm onBack={() => setView('home')} onLogin={handleStandardLogin} onRegisterClick={() => setView('register-selection')} onAdminClick={() => setView('admin-login')} onGuestClick={() => setView('home')} />}
+        
+        {/* NOVAS ROTAS DE CADASTRO */}
         {view === 'register-selection' && (
-           <div className="p-8 text-center max-w-md mx-auto">
-              <h2 className="text-2xl font-black mb-6">Como você quer entrar?</h2>
-              <div className="grid gap-4">
-                <button onClick={() => setView('register-pro' as any)} className="p-6 bg-white dark:bg-gray-800 rounded-2xl border-2 border-primary hover:bg-primary/5 flex items-center gap-4 text-left">
-                  <div className="p-3 bg-primary/10 text-primary rounded-xl"><Briefcase size={32}/></div>
-                  <div><p className="font-bold">Sou Prestador</p><p className="text-xs text-gray-500">Ofereço serviços</p></div>
-                </button>
-                <button onClick={() => setView('register-business' as any)} className="p-6 bg-white dark:bg-gray-800 rounded-2xl border-2 border-tertiary hover:bg-tertiary/5 flex items-center gap-4 text-left">
-                  <div className="p-3 bg-tertiary/10 text-tertiary rounded-xl"><Store size={32}/></div>
-                  <div><p className="font-bold">Sou Comércio</p><p className="text-xs text-gray-500">Tenho uma loja física</p></div>
-                </button>
-                <button onClick={() => setView('register-client' as any)} className="p-6 bg-white dark:bg-gray-800 rounded-2xl border-2 border-gray-200 hover:bg-gray-50 flex items-center gap-4 text-left">
-                  <div className="p-3 bg-gray-100 text-gray-600 rounded-xl"><Smartphone size={32}/></div>
-                  <div><p className="font-bold">Sou Cliente</p><p className="text-xs text-gray-500">Quero apenas procurar</p></div>
-                </button>
-              </div>
-           </div>
+          <RegisterSelection 
+            onSelect={(type) => setView(`register-${type}` as AppView)} 
+            onBack={() => setView('home')} 
+          />
         )}
-        
-        {view.toString().startsWith('register-') && view !== 'register-selection' && (
-          <RegisterForm type={view.toString().replace('register-', '') as any} onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />
-        )}
+        {view === 'register-client' && <RegisterForm type="client" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
+        {view === 'register-pro' && <RegisterForm type="pro" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
+        {view === 'register-business' && <RegisterForm type="business" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
 
-        {view === 'user-profile' && currentUser && <UserProfile user={currentUser} onUpdate={(u) => update(ref(db, `users/${u.id}`), u)} onLogout={handleLogout} onBack={() => setView('home')} />}
-        
-        {view === 'admin-login' && (
-           <div className="flex-grow flex items-center justify-center p-4">
-              <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl p-8 border border-gray-100 dark:border-gray-700 shadow-2xl">
-                 <div className="flex justify-between items-start mb-6">
-                    <h2 className="text-2xl font-black flex items-center gap-2"><Shield className="text-primary"/> Acesso Admin</h2>
-                    <div className="flex gap-2">
-                       <button 
-                         onClick={() => window.dispatchEvent(new CustomEvent('open-firebase-config'))} 
-                         className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-primary rounded-xl transition-all" 
-                         title="Recuperar Conexão"
-                       >
-                         <Settings size={20}/>
-                       </button>
-                       <button onClick={() => setView('home')} className="text-gray-400 hover:text-gray-600 p-2"><X size={20}/></button>
-                    </div>
-                 </div>
-                 
-                 {currentUser?.email === MASTER_EMAIL ? (
-                   <div className="space-y-6 text-center animate-in fade-in zoom-in duration-300">
-                      <div className="bg-green-50 p-6 rounded-2xl border border-green-200">
-                         <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <ShieldCheck size={32} />
-                         </div>
-                         <p className="text-sm text-green-800 font-bold mb-1">Olá Master!</p>
-                         <p className="text-xs text-green-600">
-                            {(!auth || (auth as any)._isMock) ? 'Você entrou via modo de emergência.' : 'Sua sessão já está ativa.'}
-                         </p>
-                      </div>
-                      <button 
-                        onClick={() => setView('admin-panel')}
-                        className="w-full bg-primary text-white p-4 rounded-xl font-black shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform active:scale-95"
-                      >
-                         <Shield size={20} /> Acessar Painel Master
-                      </button>
-                   </div>
-                 ) : (
-                   <form onSubmit={handleAdminLogin} className="space-y-4">
-                      <div>
-                         <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1 tracking-widest">E-mail Administrativo</label>
-                         <div className="relative">
-                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                            <input type="email" required value={loginUser} onChange={e => setLoginUser(e.target.value)} placeholder="admin@crinf.com" className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 pl-11 pr-4 py-4 rounded-xl outline-none focus:ring-2 focus:ring-primary transition-all" />
-                         </div>
-                      </div>
-                      <div>
-                         <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 ml-1 tracking-widest">Senha de Acesso</label>
-                         <div className="relative">
-                            <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                            <input type="password" required value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="••••••••" className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 pl-11 pr-4 py-4 rounded-xl outline-none focus:ring-2 focus:ring-primary transition-all" />
-                         </div>
-                      </div>
-                      
-                      <div className="flex justify-end">
-                         <button type="button" onClick={handleAdminPasswordReset} className="text-[11px] text-primary hover:underline font-bold">Esqueceu a senha?</button>
-                      </div>
-
-                      {loginError && (
-                         <div className={`p-4 rounded-xl text-xs font-bold flex flex-col gap-3 border animate-in slide-in-from-top-2 ${errorType === 'config' ? 'bg-orange-50 text-orange-800 border-orange-200' : 'bg-red-50 text-red-600 border-red-100'}`}>
-                            <div className="flex items-start gap-3">
-                               <AlertTriangle size={18} className="shrink-0 mt-0.5" /> 
-                               <span className="flex-1 leading-tight">{loginError}</span>
-                            </div>
-                            {errorType === 'config' && (
-                               <button 
-                                 type="button" 
-                                 onClick={() => window.dispatchEvent(new CustomEvent('open-firebase-config'))} 
-                                 className="w-full bg-orange-600 text-white p-3 rounded-lg font-black flex items-center justify-center gap-2 hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/20"
-                               >
-                                  <Settings size={16} /> Corrigir Conexão Agora
-                               </button>
-                            )}
-                         </div>
-                      )}
-                      
-                      <button type="submit" disabled={isAdminLoggingIn} className="w-full bg-primary hover:bg-primary-dark text-white p-4 rounded-xl font-black shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
-                         {isAdminLoggingIn ? <Loader2 className="animate-spin" size={20} /> : <><Shield size={20} /> Entrar no Painel</>}
-                      </button>
-                      
-                      <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700 mt-6">
-                         <p className="text-[10px] text-gray-400 text-center leading-relaxed">
-                            Se as chaves do site foram apagadas, entre com o e-mail Master para restaurar o sistema.
-                         </p>
-                      </div>
-                   </form>
-                 )}
-              </div>
-           </div>
-        )}
-
+        {view === 'results' && <ResultsList professionals={professionals} subCategory={selectedSubCategory} onBack={() => setView('home')} onSelectProfessional={handleSelectProfessional} currentUser={currentUser} onToggleFavorite={handleToggleFavorite} onLoadMore={() => performSearch(currentRequest!, false)} hasMore={hasMore} isLoadingMore={isLoadingMore} />}
+        {view === 'details' && selectedProfessional && <ProfessionalDetails professional={selectedProfessional} currentUser={currentUser} onBack={() => setView('results')} onAddReview={handleAddReview} onToggleFavorite={handleToggleFavorite} />}
+        {view === 'user-profile' && currentUser && <UserProfile user={currentUser} onUpdate={(u) => update(ref(db, `users/${u.id}`), u)} onLogout={handleLogout} onBack={() => setView('home')} onOpenAdmin={() => setView('admin-panel')} />}
+        {view === 'donation' && <DonationView config={appConfig} onBack={() => setView('home')} />}
+        {view === 'admin-login' && <LoginForm onBack={() => setView('home')} onLogin={handleStandardLogin} onRegisterClick={() => {}} onAdminClick={() => {}} onGuestClick={() => {}} />}
         {view === 'admin-panel' && currentUser && (
           <PainelAdministrativo 
             currentUser={currentUser} 
@@ -590,9 +584,19 @@ export default function App() {
         )}
       </main>
 
-      {view !== 'admin-panel' && view !== 'admin-login' && view !== 'user-profile' && view !== 'login' && (
-         <Footer onHomeClick={() => setView('home')} onInstagramClick={() => {}} onLoginClick={() => setView('login')} onRegisterClick={() => setView('register-selection')} onProfileClick={() => setView('user-profile')} onAboutClick={() => setShowAbout(true)} onBackClick={() => setView('home')} currentUser={currentUser} currentView={view} />
-      )}
+      <Footer 
+        onHomeClick={() => setView('home')} 
+        onInstagramClick={() => window.open(appConfig.instagramUrl || 'https://www.instagram.com/crinfinformatica/', '_blank')} 
+        onLoginClick={() => setView('login')} 
+        onRegisterClick={() => setView('register-selection')} 
+        onProfileClick={() => setView('user-profile')} 
+        onDonationClick={() => setView('donation')}
+        onAboutClick={() => setShowAbout(true)} 
+        onBackClick={() => setView('home')} 
+        currentUser={currentUser} 
+        currentView={view} 
+        config={appConfig}
+      />
     </div>
   );
 }

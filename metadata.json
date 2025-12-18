@@ -1,5 +1,8 @@
+
 {
   "name": "O Que Tem Perto? Águas Claras e Região",
   "description": "Eletricista, diarista, fotógrafo, carreto... Contrate todo tipo de serviço aqui! Precisando encontrar profissionais em Campo Largo.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "geolocation"
+  ]
 }

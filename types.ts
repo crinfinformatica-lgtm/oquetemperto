@@ -8,16 +8,15 @@ export interface Category {
 
 export interface ServiceRequest {
   categoryId: string;
-  subCategory: string; // e.g., "Eletricista"
+  subCategory: string;
   description: string;
   location: string;
   urgency: string;
-  // New Search Filters
   searchType?: 'pro' | 'business' | 'mixed';
   neighborhood?: string;
   onlyHighRated?: boolean;
-  coordinates?: { lat: number; lng: number }; // GPS Support
-  detectedCategory?: string; // AI Detected Category for better matching
+  coordinates?: { lat: number; lng: number };
+  detectedCategory?: string;
 }
 
 export interface Review {
@@ -41,9 +40,17 @@ export interface Professional {
   tags: string[];
   avatarUrl: string;
   distance: string;
-  neighborhood?: string; // Added Neighborhood explicitly
-  reviews: Review[]; // New field for storing comments
-  isHighlighted?: boolean; // VISUAL HIGHLIGHT
+  neighborhood?: string;
+  reviews: Review[];
+  isHighlighted?: boolean;
+  address?: string;
+  phone?: string;
+  socials?: {
+    instagram?: string;
+    facebook?: string;
+    website?: string;
+    googleMyBusiness?: string;
+  };
 }
 
 export type UserRole = 'master' | 'admin' | 'client' | 'pro' | 'business';
@@ -55,57 +62,94 @@ export interface User {
   role: UserRole;
   status: 'active' | 'banned' | 'locked';
   avatarUrl?: string;
-  coverUrl?: string; // Capa para loja
+  coverUrl?: string;
   failedLoginAttempts: number;
-  
-  // Professional / Business Specific
-  category?: string; // "Pizzaria", "Eletricista", ou personalizado
+  category?: string;
   businessDescription?: string;
   cnpj?: string;
-  servedNeighborhoods?: string[]; // Bairros que atende/entrega
-  
-  // Highlight / Destaque System
-  highlightExpiresAt?: string; // ISO String date when highlight ends
-  
-  // Professional Privacy Settings
+  servedNeighborhoods?: string[];
+  highlightExpiresAt?: string;
   privacySettings?: {
     showPhone: boolean;
     showAddress: boolean;
   };
-
-  // Social Media
   socials?: {
     instagram?: string;
     facebook?: string;
     website?: string;
     googleMyBusiness?: string;
   };
-
-  // Personal / Contact
   cpf?: string;
-  rg?: string; // Added RG
+  rg?: string;
   phone?: string;
   zipCode?: string;
   address?: string;
-  neighborhood?: string; // Bairro validado
-  favorites: string[]; // List of Professional IDs
+  neighborhood?: string;
+  favorites: string[];
+}
+
+export interface BusLine {
+  id: string;
+  name: string;
+  url: string;
+}
+
+export interface UtilityItem {
+  id: string;
+  name: string;
+  number: string;
+  description: string;
+}
+
+export interface UtilityCategory {
+  id: string;
+  title: string;
+  items: UtilityItem[];
+}
+
+export interface Campaign {
+  active: boolean;
+  title: string;
+  description: string;
+  imageUrl: string;
+  link?: string;
+  label?: string;
+}
+
+export interface SocialProject {
+  active: boolean;
+  name: string;
+  description: string;
+  pixKey: string;
+  instagram: string;
 }
 
 export interface AppConfig {
   appName: string;
-  headerSubtitle?: string; // Novo campo para o texto abaixo do nome
+  headerSubtitle?: string;
   primaryColor: string;
   accentColor: string;
-  tertiaryColor: string; // New Dark Green Color
-  logoUrl?: string; // Custom uploaded logo
-  pixKey?: string; // Chave Pix para contribuição
-  supportEmail?: string; // Email de suporte visível no app
-  apkUrl?: string; // URL para download direto do APK Android
+  tertiaryColor: string;
+  fontFamily?: string;
+  logoUrl?: string;
+  pixKey?: string;
+  supportEmail?: string;
+  apkUrl?: string;
+  instagramUrl?: string;
+  shareUrl?: string;
+  busLines?: BusLine[];
+  utilityCategories?: UtilityCategory[];
+  utilityOrder?: string[];
+  campaign?: Campaign;
+  socialProject?: SocialProject;
+  footerText?: string;
+  footerSubtext?: string;
+  headerTitle?: string;
 }
 
 export type AppView = 
   | 'home' 
-  | 'login' // New dedicated login view
+  | 'login' 
   | 'request-form' 
   | 'results' 
   | 'details' 
@@ -115,4 +159,5 @@ export type AppView =
   | 'register-business'
   | 'admin-login'
   | 'admin-panel'
-  | 'user-profile';
+  | 'user-profile'
+  | 'donation';

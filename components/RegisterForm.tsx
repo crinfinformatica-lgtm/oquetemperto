@@ -228,7 +228,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
     } catch (err: any) {
       console.error("Google Auth Error", err);
       if (err.code === 'auth/unauthorized-domain') {
-        setError("Erro: Domínio não autorizado. Adicione este domínio no Firebase Console ou use cadastro via E-mail.");
+        setError(`Domínio não autorizado (${window.location.hostname}). Adicione-o no Firebase Console.`);
       } else {
         setError("Erro ao conectar com Google. Tente novamente ou use E-mail.");
       }
