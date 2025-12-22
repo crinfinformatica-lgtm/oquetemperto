@@ -561,9 +561,9 @@ export default function App() {
             onBack={() => setView('home')} 
           />
         )}
-        {view === 'register-client' && <RegisterForm type="client" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
-        {view === 'register-pro' && <RegisterForm type="pro" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
-        {view === 'register-business' && <RegisterForm type="business" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
+        {view === 'register-client' && <RegisterForm appName={appConfig.appName} type="client" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
+        {view === 'register-pro' && <RegisterForm appName={appConfig.appName} type="pro" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
+        {view === 'register-business' && <RegisterForm appName={appConfig.appName} type="business" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
 
         {view === 'results' && <ResultsList professionals={professionals} subCategory={selectedSubCategory} onBack={() => setView('home')} onSelectProfessional={handleSelectProfessional} currentUser={currentUser} onToggleFavorite={handleToggleFavorite} onLoadMore={() => performSearch(currentRequest!, false)} hasMore={hasMore} isLoadingMore={isLoadingMore} />}
         {view === 'details' && selectedProfessional && <ProfessionalDetails professional={selectedProfessional} currentUser={currentUser} onBack={() => setView('results')} onAddReview={handleAddReview} onToggleFavorite={handleToggleFavorite} />}

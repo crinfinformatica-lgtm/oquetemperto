@@ -5,6 +5,7 @@ import { fetchAddressByCep } from '../services/cepService';
 import { User as UserType } from '../types';
 import { ALLOWED_NEIGHBORHOODS, CATEGORIES } from '../constants';
 import AppLogo from './AppLogo';
+import PrivacyPolicy from './PrivacyPolicy';
 import emailjs from '@emailjs/browser';
 
 // Firebase Imports
@@ -16,15 +17,18 @@ type RegisterType = 'client' | 'pro' | 'business';
 
 interface RegisterFormProps {
   type: RegisterType;
+  appName: string;
   onBack: () => void;
   onRegisterSuccess?: (newUser: UserType) => void;
 }
 
-const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuccess }) => {
+const RegisterForm: React.FC<RegisterFormProps> = ({ type, appName, onBack, onRegisterSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -192,6 +196,10 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
   };
 
   const handleGoogleRegister = async () => {
+    if (!acceptedTerms) {
+      setError("Você precisa aceitar os termos de uso antes de continuar.");
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -287,6 +295,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!acceptedTerms) {
+      setError("Você precisa aceitar os termos de uso antes de finalizar o cadastro.");
+      return;
+    }
 
     // Validação de CEP apenas para Prestadores e Comércios
     if (type !== 'client' && !cepVerified) {
@@ -901,6 +914,21 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
                 </div>
               </div>
 
+              {/* Terms and Privacy Policy Checkbox */}
+              <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200 mt-6 flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="acceptTerms"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 w-5 h-5 text-primary rounded focus:ring-primary border-gray-300 cursor-pointer"
+                  required
+                />
+                <label htmlFor="acceptTerms" className="text-sm text-gray-600 cursor-pointer select-none">
+                  Li e aceito os <button type="button" onClick={() => setShowTermsModal(true)} className="text-primary font-bold hover:underline">Termos de Uso</button> e a <button type="button" onClick={() => setShowTermsModal(true)} className="text-primary font-bold hover:underline">Política de Privacidade</button> de Campo Largo e Região.
+                </label>
+              </div>
+
               {error && (
                  <div className="bg-red-50 text-red-600 p-3 rounded text-sm mt-4 flex items-start gap-2">
                     <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
@@ -910,10 +938,10 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
 
               <button 
                 type="submit"
-                disabled={loading || (type !== 'client' && !cepVerified)}
+                disabled={loading || (type !== 'client' && !cepVerified) || !acceptedTerms}
                 className={`w-full text-white font-bold py-3 rounded-lg mt-4 shadow-md transition-all flex items-center justify-center gap-2
                   ${config.color === 'bg-accent' ? 'bg-accent hover:bg-yellow-500 text-gray-900' : config.color === 'bg-tertiary' ? 'bg-tertiary hover:brightness-90' : config.color + ' hover:brightness-90'}
-                  ${(loading || (type !== 'client' && !cepVerified)) ? 'opacity-50 cursor-not-allowed' : ''}
+                  ${(loading || (type !== 'client' && !cepVerified) || !acceptedTerms) ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
               >
                 {loading ? <Loader2 className="animate-spin" /> : 'Finalizar Cadastro'}
@@ -921,11 +949,18 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ type, onBack, onRegisterSuc
             </form>
             
             <p className="text-center text-xs text-gray-500 mt-6">
-              Ao se cadastrar, você concorda com nossos Termos de Uso e Política de Privacidade.
+              O cadastro é gratuito e seguro.
             </p>
           </div>
         </div>
       </div>
+      
+      {showTermsModal && (
+        <PrivacyPolicy 
+          appName={appName} 
+          onClose={() => setShowTermsModal(false)} 
+        />
+      )}
     </div>
   );
 };
