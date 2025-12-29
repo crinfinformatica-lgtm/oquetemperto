@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Shield, Lock, Eye, AlertTriangle } from 'lucide-react';
+import { X, Shield, Lock, Eye, AlertTriangle, Mail } from 'lucide-react';
 import { AppConfig } from '../types';
 
 interface PrivacyPolicyProps {
@@ -85,6 +85,13 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onClose, appName }) => {
           </p>
           <p className="mt-2">
              <strong>Consequências:</strong> Usuários que violarem esta regra terão suas contas <strong>banidas permanentemente</strong> e imediatamente, sem direito a recurso. O aplicativo reserva-se o direito de encaminhar dados às autoridades competentes em casos de crimes previstos em lei.
+          </p>
+
+          <h3 className="text-base font-bold text-gray-800 dark:text-white mt-4 flex items-center gap-2">
+             <Mail size={16} className="text-primary" /> 7. Suporte e Contato
+          </h3>
+          <p>
+            Para qualquer dúvida, sugestão ou suporte técnico, você pode entrar em contato com nossa equipe através do e-mail: <a href="mailto:crinf.app@gmail.com" className="text-primary font-bold hover:underline">crinf.app@gmail.com</a>.
           </p>
         </div>
 

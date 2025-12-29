@@ -20,7 +20,7 @@ import DonationView from './components/DonationView';
 import { identifyServiceCategory } from './services/geminiService';
 import { AppView, ServiceRequest, Professional, User, AppConfig, Review } from './types';
 import { 
-  Search, Loader2, Briefcase, Store, ArrowLeft, MapPin, Star, X, Share2, Download, Smartphone, Info, HelpCircle, Shield, Megaphone, ExternalLink, Navigation
+  Search, Loader2, Briefcase, Store, ArrowLeft, MapPin, Star, X, Share2, Download, Smartphone, Info, HelpCircle, Shield, Megaphone, ExternalLink, Navigation, Users as UsersIcon
 } from 'lucide-react';
 import { ALLOWED_NEIGHBORHOODS } from './constants';
 
@@ -43,6 +43,7 @@ const INITIAL_CONFIG: AppConfig = {
   apkUrl: '',
   footerText: 'Desenvolvido pela',
   footerSubtext: 'Todos os direitos reservados',
+  showUserCounter: true,
   utilityOrder: ['emergencia', 'utilidade', 'saude', 'bus', 'social', 'prefeitura'],
   busLines: [
     { id: 'b1', name: 'Águas Claras', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' },
@@ -156,6 +157,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig>(INITIAL_CONFIG);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
 
   useEffect(() => {
     if (view === 'admin-login' && currentUser && (currentUser.role === 'master' || currentUser.role === 'admin')) {
@@ -265,6 +267,18 @@ export default function App() {
           utilityOrder: data.utilityOrder || INITIAL_CONFIG.utilityOrder
         });
       }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Lógica para contar total de usuários reais
+  useEffect(() => {
+    if (!hasValidConfig || !db || Object.keys(db).length === 0) return;
+    const usersRef = ref(db, 'users');
+    const unsubscribe = onValue(usersRef, (snapshot) => {
+       if (snapshot.exists()) {
+          setTotalUsersCount(Object.keys(snapshot.val()).length);
+       }
     });
     return () => unsubscribe();
   }, []);
@@ -441,6 +455,20 @@ export default function App() {
     }
   };
 
+  const handleShare = () => {
+    const shareData = {
+      title: appConfig.appName,
+      text: 'Encontre profissionais e comércios em Águas Claras e região!',
+      url: appConfig.shareUrl || window.location.href,
+    };
+    if (navigator.share) {
+      navigator.share(shareData).catch(err => console.error('Erro ao compartilhar:', err));
+    } else {
+      navigator.clipboard.writeText(shareData.url);
+      alert('Link copiado para a área de transferência!');
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen font-sans text-gray-900 bg-gray-50 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
       <style>{`
@@ -453,7 +481,7 @@ export default function App() {
       `}</style>
 
       {view !== 'admin-panel' && view !== 'admin-login' && view !== 'user-profile' && view !== 'login' && (
-        <Header onLogoClick={() => setView('home')} config={appConfig} onShareClick={() => {}} />
+        <Header onLogoClick={() => setView('home')} config={appConfig} onShareClick={handleShare} />
       )}
 
       <main className="flex-grow flex flex-col relative pb-4"> 
@@ -500,7 +528,7 @@ export default function App() {
                 </div>
              )}
 
-             <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 md:p-6 mb-8">
+             <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 md:p-6 mb-4">
                 <div className="flex gap-2 p-1 bg-gray-50 dark:bg-gray-900 rounded-2xl mb-6">
                    <button onClick={() => setSearchTab('pro')} className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all ${searchTab === 'pro' ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-md' : 'text-gray-400'}`}>Serviços</button>
                    <button onClick={() => setSearchTab('business')} className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all ${searchTab === 'business' ? 'bg-white dark:bg-gray-700 text-tertiary shadow-md' : 'text-gray-400'}`}>Comércio</button>
@@ -547,6 +575,20 @@ export default function App() {
                    )}
                 </div>
              </div>
+
+             {/* Badge de Total de Usuários / Prova Social */}
+             {appConfig.showUserCounter && totalUsersCount > 0 && (
+                <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-5 py-2 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm animate-in fade-in zoom-in duration-500 mb-8">
+                   <div className="flex -space-x-2">
+                      <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center border-2 border-white dark:border-gray-800"><UsersIcon size={10} className="text-blue-600" /></div>
+                      <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center border-2 border-white dark:border-gray-800"><UsersIcon size={10} className="text-green-600" /></div>
+                      <div className="w-6 h-6 rounded-full bg-yellow-100 flex items-center justify-center border-2 border-white dark:border-gray-800"><UsersIcon size={10} className="text-yellow-600" /></div>
+                   </div>
+                   <p className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-300">
+                      Junte-se a <span className="text-primary font-black">+{totalUsersCount} pessoas</span> na nossa comunidade!
+                   </p>
+                </div>
+             )}
              
              <PublicUtilities config={appConfig} />
           </div>

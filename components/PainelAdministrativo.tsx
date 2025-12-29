@@ -6,7 +6,8 @@ import {
   Palette, Save, LogOut, Zap, ListPlus, Megaphone, Share2, 
   RefreshCw, X, ArrowUp, ArrowDown, Globe, Edit, Star, 
   Calendar, Phone, Info, Smartphone, ExternalLink, QrCode, Database,
-  Bus, Download, Copy, Heart, Upload, FileText, Type, Image as ImageIcon, Maximize
+  Bus, Download, Copy, Heart, Upload, FileText, Type, Image as ImageIcon, Maximize, Instagram, Facebook,
+  MapPin, Menu
 } from 'lucide-react';
 import { db, hasValidConfig } from '../services/firebase';
 import { ref, onValue, set, get } from 'firebase/database';
@@ -307,6 +308,31 @@ Saiba mais no App O Que Tem Perto!`;
                     <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Endereço Completo</label>
                     <input type="text" value={editingUser.address || ''} onChange={e => setEditingUser({...editingUser, address: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none text-sm font-bold" />
                  </div>
+                 
+                 {/* Edição de Redes Sociais no Admin */}
+                 {(editingUser.role === 'pro' || editingUser.role === 'business') && (
+                    <div className="md:col-span-2 space-y-4">
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b pb-1 mb-2">Redes Sociais</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="relative">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 flex items-center gap-1"><Instagram size={10}/> Instagram</label>
+                                <input type="text" value={editingUser.socials?.instagram || ''} onChange={e => setEditingUser({...editingUser, socials: {...(editingUser.socials || {}), instagram: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl text-xs outline-none" placeholder="@usuario ou link" />
+                            </div>
+                            <div className="relative">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 flex items-center gap-1"><Facebook size={10}/> Facebook</label>
+                                <input type="text" value={editingUser.socials?.facebook || ''} onChange={e => setEditingUser({...editingUser, socials: {...(editingUser.socials || {}), facebook: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl text-xs outline-none" placeholder="link" />
+                            </div>
+                            <div className="relative">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 flex items-center gap-1"><Globe size={10}/> Website</label>
+                                <input type="text" value={editingUser.socials?.website || ''} onChange={e => setEditingUser({...editingUser, socials: {...(editingUser.socials || {}), website: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl text-xs outline-none" placeholder="https://..." />
+                            </div>
+                            <div className="relative">
+                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10}/> Google Meu Negócio</label>
+                                <input type="text" value={editingUser.socials?.googleMyBusiness || ''} onChange={e => setEditingUser({...editingUser, socials: {...(editingUser.socials || {}), googleMyBusiness: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl text-xs outline-none" placeholder="link" />
+                            </div>
+                        </div>
+                    </div>
+                 )}
               </div>
               <div className="flex gap-4 pt-4">
                  <button type="submit" className="flex-1 bg-primary text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all">SALVAR ALTERAÇÕES</button>
@@ -374,7 +400,7 @@ Saiba mais no App O Que Tem Perto!`;
            <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm max-w-3xl animate-in fade-in space-y-10">
               <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight flex items-center gap-2"><Palette size={24} className="text-primary"/> Identidade Visual e Textos</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-b pb-8">
                  <div className="space-y-6">
                     <div>
                        <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Logo do Aplicativo (PNG Transparente)</label>
@@ -405,6 +431,25 @@ Saiba mais no App O Que Tem Perto!`;
                     <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Subtítulo do Cabeçalho</label><input type="text" value={configForm.headerSubtitle || ''} onChange={e => setConfigForm({...configForm, headerSubtitle: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm" /></div>
                     <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Texto Principal do Rodapé (Footer)</label><input type="text" value={configForm.footerText || ''} onChange={e => setConfigForm({...configForm, footerText: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm" /></div>
                     <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Subtexto do Rodapé</label><input type="text" value={configForm.footerSubtext || ''} onChange={e => setConfigForm({...configForm, footerSubtext: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm" /></div>
+                 </div>
+              </div>
+
+              <div className="space-y-4">
+                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b pb-1">Recursos Sociais</h4>
+                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                    <div>
+                       <p className="text-sm font-bold text-gray-800">Contador de Usuários na Home</p>
+                       <p className="text-[10px] text-gray-500">Exibe "+X pessoas já fazem parte" para novos visitantes.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                       <input 
+                         type="checkbox" 
+                         checked={configForm.showUserCounter} 
+                         onChange={e => setConfigForm({...configForm, showUserCounter: e.target.checked})}
+                         className="sr-only peer" 
+                       />
+                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                    </label>
                  </div>
               </div>
            </div>
@@ -467,7 +512,7 @@ Saiba mais no App O Que Tem Perto!`;
                     <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(configForm.shareUrl || window.location.href)}`} alt="QR Code" className="w-full h-full object-contain" />
                  </div>
                  <p className="text-sm text-gray-500 font-medium mb-8">Aponte a câmera do celular para abrir o aplicativo instantaneamente.</p>
-                 <button onClick={() => window.print()} className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:scale-105 active:scale-95 transition-all"><Download size={18}/> Baixar para Impressão</button>
+                 <button onClick={() => window.print()} className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all"><Download size={18}/> Baixar para Impressão</button>
               </div>
               <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
                  <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-8 flex items-center gap-2"><Share2 size={24} className="text-primary"/> Links de Divulgação</h3>
@@ -642,6 +687,12 @@ Saiba mais no App O Que Tem Perto!`;
             </div>
           </div>
         )}
+
+        {/* Mobile menu trigger button fix */}
+        <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 z-20">
+          <span className="font-bold text-lg text-primary">Admin Panel</span>
+          <button onClick={() => {}} className="p-2 text-gray-600"><Menu /></button>
+        </div>
 
       </main>
     </div>

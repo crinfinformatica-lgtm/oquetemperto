@@ -149,6 +149,7 @@ export interface AppConfig {
   footerText?: string;
   footerSubtext?: string;
   headerTitle?: string;
+  showUserCounter?: boolean;
 }
 
 export type AppView = 
