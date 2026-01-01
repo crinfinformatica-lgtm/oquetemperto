@@ -7,10 +7,11 @@ import {
   RefreshCw, X, ArrowUp, ArrowDown, Globe, Edit, Star, 
   Calendar, Phone, Info, Smartphone, ExternalLink, QrCode, Database,
   Bus, Download, Copy, Heart, Upload, FileText, Type, Image as ImageIcon, Maximize, Instagram, Facebook,
-  MapPin, Menu
+  MapPin, Menu, History, RotateCcw, ShieldCheck, DownloadCloud, UploadCloud, AlertTriangle, Code, Settings,
+  ToggleLeft, ToggleRight, Layout, CheckCircle2, Plus, PlusCircle, Link as LinkIcon, Search, MoreHorizontal, Clock
 } from 'lucide-react';
 import { db, hasValidConfig } from '../services/firebase';
-import { ref, onValue, set, get } from 'firebase/database';
+import { ref, onValue, set, get, update } from 'firebase/database';
 import { ALLOWED_NEIGHBORHOODS, CATEGORIES } from '../constants';
 import AppLogo from './AppLogo';
 
@@ -40,9 +41,12 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
   
   const [configForm, setConfigForm] = useState<AppConfig>(appConfig);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
-
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [highlightMenuUser, setHighlightMenuUser] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // States para Ferramentas
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     if (!hasValidConfig || !db || Object.keys(db).length === 0) {
@@ -75,169 +79,197 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
     }
   };
 
-  // --- IMAGENS: PROCESSAMENTO E UPLOAD ---
-  const processImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (e) => {
-        const img = new Image();
-        img.src = e.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const max = 1200;
-          let w = img.width;
-          let h = img.height;
-          if (w > max) { h = (max / w) * h; w = max; }
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/png', 0.8));
-        };
+  // --- FUNÇÕES DE USUÁRIOS ---
+  const handleSetHighlight = (user: User, days: number) => {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + days);
+    onUpdateUser({ ...user, highlightExpiresAt: expiresAt.toISOString() });
+    alert(`✅ ${user.name} destacado por ${days} dias!`);
+  };
+
+  const handleRemoveHighlight = (user: User) => {
+    onUpdateUser({ ...user, highlightExpiresAt: undefined });
+    alert(`✅ Destaque removido de ${user.name}`);
+  };
+
+  const isHighlighted = (user: User) => {
+    if (!user.highlightExpiresAt) return false;
+    return new Date(user.highlightExpiresAt) > new Date();
+  };
+
+  const getRemainingDays = (dateStr: string) => {
+    const remaining = new Date(dateStr).getTime() - new Date().getTime();
+    return Math.ceil(remaining / (1000 * 60 * 60 * 24));
+  };
+
+  // --- FUNÇÕES DE UTILIDADES ---
+  const handleAddUtilityItem = (categoryId: string) => {
+    const newItems = [...(configForm.utilityCategories || [])];
+    const categoryIndex = newItems.findIndex(c => c.id === categoryId);
+    if (categoryIndex > -1) {
+      const newItem: UtilityItem = {
+        id: `it-${Date.now()}`,
+        name: '',
+        number: '',
+        description: ''
       };
-      reader.onerror = reject;
-    });
+      newItems[categoryIndex].items.push(newItem);
+      setConfigForm({ ...configForm, utilityCategories: newItems });
+    }
+  };
+
+  const handleRemoveUtilityItem = (categoryId: string, itemId: string) => {
+    const newItems = [...(configForm.utilityCategories || [])];
+    const categoryIndex = newItems.findIndex(c => c.id === categoryId);
+    if (categoryIndex > -1) {
+      newItems[categoryIndex].items = newItems[categoryIndex].items.filter(i => i.id !== itemId);
+      setConfigForm({ ...configForm, utilityCategories: newItems });
+    }
+  };
+
+  const handleUpdateUtilityItem = (categoryId: string, itemId: string, field: keyof UtilityItem, value: string) => {
+    const newItems = [...(configForm.utilityCategories || [])];
+    const categoryIndex = newItems.findIndex(c => c.id === categoryId);
+    if (categoryIndex > -1) {
+      const itemIndex = newItems[categoryIndex].items.findIndex(i => i.id === itemId);
+      if (itemIndex > -1) {
+        newItems[categoryIndex].items[itemIndex] = { ...newItems[categoryIndex].items[itemIndex], [field]: value };
+        setConfigForm({ ...configForm, utilityCategories: newItems });
+      }
+    }
+  };
+
+  const handleMoveUtilityCategory = (index: number, direction: 'up' | 'down') => {
+    const newCategories = [...(configForm.utilityCategories || [])];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < newCategories.length) {
+      [newCategories[index], newCategories[targetIndex]] = [newCategories[targetIndex], newCategories[index]];
+      setConfigForm({ ...configForm, utilityCategories: newCategories });
+    }
+  };
+
+  const handleMoveUtilityItem = (categoryId: string, itemIndex: number, direction: 'up' | 'down') => {
+    const newCategories = [...(configForm.utilityCategories || [])];
+    const catIndex = newCategories.findIndex(c => c.id === categoryId);
+    if (catIndex > -1) {
+      const items = [...newCategories[catIndex].items];
+      const targetIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
+      if (targetIndex >= 0 && targetIndex < items.length) {
+        [items[itemIndex], items[targetIndex]] = [items[targetIndex], items[itemIndex]];
+        newCategories[catIndex].items = items;
+        setConfigForm({ ...configForm, utilityCategories: newCategories });
+      }
+    }
+  };
+
+  const handleAddBusLine = () => {
+    const newLine: BusLine = { id: `bus-${Date.now()}`, name: '', url: '' };
+    setConfigForm({ ...configForm, busLines: [...(configForm.busLines || []), newLine] });
+  };
+
+  const handleRemoveBusLine = (id: string) => {
+    setConfigForm({ ...configForm, busLines: (configForm.busLines || []).filter(b => b.id !== id) });
+  };
+
+  const handleUpdateBusLine = (id: string, field: keyof BusLine, value: string) => {
+    const newLines = (configForm.busLines || []).map(b => b.id === id ? { ...b, [field]: value } : b);
+    setConfigForm({ ...configForm, busLines: newLines });
+  };
+
+  const handleMoveBusLine = (index: number, direction: 'up' | 'down') => {
+    const newLines = [...(configForm.busLines || [])];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex >= 0 && targetIndex < newLines.length) {
+      [newLines[index], newLines[targetIndex]] = [newLines[targetIndex], newLines[index]];
+      setConfigForm({ ...configForm, busLines: newLines });
+    }
+  };
+
+  // --- FUNÇÕES DE DIVULGAÇÃO ---
+  const handleDownloadQRCode = () => {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(configForm.shareUrl || window.location.origin)}`;
+    const a = document.createElement('a');
+    a.href = qrUrl;
+    a.download = `qrcode_${configForm.appName.replace(/\s+/g, '_').toLowerCase()}.png`;
+    window.open(qrUrl, '_blank');
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Copiado com sucesso!");
+  };
+
+  // --- FUNÇÕES DE BACKUP ---
+  const handleExportConfigOnly = () => {
+    const backupPackage = { app_name: configForm.appName, timestamp: new Date().toISOString(), type: "config-only", config: configForm };
+    const blob = new Blob([JSON.stringify(backupPackage, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const filename = `PREFERENCIAS_PAINEL_${configForm.appName.replace(/\s+/g, '_').toUpperCase()}.json`;
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleRestoreConfigOnly = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!confirm("⚠️ RESTAURAR PREFERÊNCIAS?\nIsso irá substituir cores, logos, utilitários e links. OS USUÁRIOS NÃO SERÃO AFETADOS.")) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = JSON.parse(event.target?.result as string);
+        const configToRestore = content.config ? content.config : content;
+        await set(ref(db, 'config'), configToRestore);
+        alert("✅ CONFIGURAÇÕES RESTAURADAS!");
+        window.location.reload();
+      } catch (err) { alert("❌ ERRO NA RESTAURAÇÃO: " + err); }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleGenerateTotalSnapshot = async () => {
+    setIsExporting(true);
+    try {
+      const snap = await get(ref(db, '/'));
+      const totalData = snap.val();
+      const backupPackage = { app_name: configForm.appName, timestamp: new Date().toISOString(), version: "2.0-total-snapshot", data: totalData };
+      const blob = new Blob([JSON.stringify(backupPackage, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const filename = `SNAPSHOT_TOTAL_${configForm.appName.replace(/\s+/g, '_').toUpperCase()}_${new Date().toISOString().split('T')[0]}.json`;
+      const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+    } catch (err) { alert("❌ Falha ao gerar Snapshot: " + err); } finally { setIsExporting(false); }
+  };
+
+  const handleRestoreFromSnapshot = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !confirm("⚠️ AVISO DE SEGURANÇA MÁXIMA: Esta ação irá APAGAR TODO o banco de dados. Prosseguir?")) return;
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = JSON.parse(event.target?.result as string);
+        const dataToRestore = content.data ? content.data : content;
+        await set(ref(db, '/'), dataToRestore);
+        alert("✅ SISTEMA TOTALMENTE RESTAURADO!");
+        window.location.reload();
+      } catch (err) { alert("❌ ERRO NA IMPORTAÇÃO: " + err); } finally { setIsImporting(false); }
+    };
+    reader.readAsText(file);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: string) => {
     if (e.target.files && e.target.files[0]) {
       try {
-        const b64 = await processImage(e.target.files[0]);
-        if (target === 'logo') setConfigForm({ ...configForm, logoUrl: b64 });
-        if (target === 'campaign') setConfigForm({ ...configForm, campaign: { ...configForm.campaign!, imageUrl: b64 } });
-        if (target === 'social') setConfigForm({ ...configForm, socialProject: { ...configForm.socialProject!, imageUrl: b64 } });
-      } catch (err) {
-        alert("Erro ao processar imagem.");
-      }
-    }
-  };
-
-  // --- FERRAMENTAS: BACKUP E RESTAURAÇÃO ---
-  const handleBackupDB = async () => {
-    try {
-      const snap = await get(ref(db, '/'));
-      const data = snap.val();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `backup_app_oquetemperto_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-    } catch (err) {
-      alert("Erro ao gerar backup.");
-    }
-  };
-
-  const handleRestoreDB = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!confirm("⚠️ ATENÇÃO CRÍTICA: Isso irá apagar todo o seu banco de dados atual e substituir pelo backup. Tem certeza?")) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const json = JSON.parse(event.target?.result as string);
-        await set(ref(db, '/'), json);
-        alert("✅ Banco de dados restaurado! O aplicativo será recarregado.");
-        window.location.reload();
-      } catch (err) {
-        alert("❌ Erro ao ler arquivo. Verifique se é um JSON válido.");
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleExportPrompt = () => {
-    const prompt = `INSTRUÇÕES DE RECONSTRUÇÃO DO APP:
-Nome: ${configForm.appName}
-Cores: Primária(${configForm.primaryColor}), Accent(${configForm.accentColor}), Sucesso(${configForm.tertiaryColor})
-Total Usuários Atuais: ${localUsers.length}
-Configurações Fixas: Guia de serviços e comércios regional.
-Firebase Config Atual: ${JSON.stringify(configForm, null, 2)}`;
-    
-    const blob = new Blob([prompt], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `prompt_reconstrucao_${configForm.appName}.txt`;
-    a.click();
-  };
-
-  // --- MARKETING E CAMPANHAS ---
-  const handleShareCampaign = () => {
-    const text = `Apoie o ${configForm.socialProject?.name}! 
-Pix: ${configForm.socialProject?.pixKey}
-Instagram: @${configForm.socialProject?.instagram}
-Saiba mais no App O Que Tem Perto!`;
-    if (navigator.share) {
-      navigator.share({ title: 'Apoie nosso projeto', text });
-    } else {
-      navigator.clipboard.writeText(text);
-      alert("Dados copiados para a área de transferência!");
-    }
-  };
-
-  const handleDownloadLogo = () => {
-    if (!configForm.logoUrl) {
-       alert("Não há logo configurada para download.");
-       return;
-    }
-    const a = document.createElement('a');
-    a.href = configForm.logoUrl;
-    a.download = 'logo_app_transparente.png';
-    a.click();
-  };
-
-  // --- UTILIDADES: GERENCIAMENTO ---
-  const moveSection = (id: string, direction: 'up' | 'down') => {
-    const order = configForm.utilityOrder || ['emergencia', 'utilidade', 'saude', 'bus', 'social', 'prefeitura'];
-    const index = order.indexOf(id);
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= order.length) return;
-    const newOrder = [...order];
-    [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
-    setConfigForm({ ...configForm, utilityOrder: newOrder });
-  };
-
-  const editUtilityItem = (catId: string, itemId: string, field: keyof UtilityItem, value: string) => {
-    const categories = (configForm.utilityCategories || []).map(cat => {
-      if (cat.id === catId) {
-        return {
-          ...cat,
-          items: cat.items.map(item => item.id === itemId ? { ...item, [field]: value } : item)
+        const reader = new FileReader();
+        reader.readAsDataURL(e.target.files[0]);
+        reader.onload = (ev) => {
+          const b64 = ev.target?.result as string;
+          if (target === 'logo') setConfigForm({ ...configForm, logoUrl: b64 });
+          if (target === 'campaign') setConfigForm({ ...configForm, campaign: { ...configForm.campaign!, imageUrl: b64 } });
+          if (target === 'social') setConfigForm({ ...configForm, socialProject: { ...configForm.socialProject!, imageUrl: b64 } });
         };
-      }
-      return cat;
-    });
-    setConfigForm({ ...configForm, utilityCategories: categories });
-  };
-
-  const addUtilityItem = (catId: string) => {
-     const newItem: UtilityItem = { id: `u-${Date.now()}`, name: 'Novo Item', number: '0000', description: 'Descrição' };
-     const categories = (configForm.utilityCategories || []).map(cat => {
-        if (cat.id === catId) return { ...cat, items: [...cat.items, newItem] };
-        return cat;
-     });
-     setConfigForm({ ...configForm, utilityCategories: categories });
-  };
-
-  const removeUtilityItem = (catId: string, itemId: string) => {
-    const categories = (configForm.utilityCategories || []).map(cat => {
-      if (cat.id === catId) return { ...cat, items: cat.items.filter(item => item.id !== itemId) };
-      return cat;
-    });
-    setConfigForm({ ...configForm, utilityCategories: categories });
-  };
-
-  const editBusLine = (id: string, field: keyof BusLine, value: string) => {
-    const lines = (configForm.busLines || []).map(line => line.id === id ? { ...line, [field]: value } : line);
-    setConfigForm({ ...configForm, busLines: lines });
-  };
-
-  const addBusLine = () => {
-    const newLine: BusLine = { id: `b-${Date.now()}`, name: 'Nova Linha', url: 'https://...' };
-    setConfigForm({ ...configForm, busLines: [...(configForm.busLines || []), newLine] });
+      } catch (err) { alert("Erro na imagem."); }
+    }
   };
 
   const handleUpdateUserSubmit = (e: React.FormEvent) => {
@@ -245,22 +277,27 @@ Saiba mais no App O Que Tem Perto!`;
     if (!editingUser) return;
     onUpdateUser(editingUser);
     setEditingUser(null);
-    alert('✅ Cadastro do usuário atualizado!');
+    alert('✅ Cadastro atualizado!');
   };
 
-  const filteredUsers = localUsers.filter(u => userFilter === 'all' ? true : u.role === userFilter);
-
-  // Fallback para ordem das utilidades se estiver vazia
-  const utilityOrder = configForm.utilityOrder && configForm.utilityOrder.length > 0 
-    ? configForm.utilityOrder 
-    : ['emergencia', 'utilidade', 'saude', 'bus', 'social', 'prefeitura'];
+  const filteredUsers = localUsers.filter(u => {
+    const matchesFilter = userFilter === 'all' ? true : 
+                         userFilter === 'pro' ? u.role === 'pro' :
+                         userFilter === 'business' ? u.role === 'business' :
+                         userFilter === 'client' ? u.role === 'client' : true;
+    
+    const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          u.email.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesFilter && matchesSearch;
+  });
 
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Modal de Edição de Usuário */}
       {editingUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-white dark:bg-gray-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-6 bg-primary text-white flex justify-between items-center">
                <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
                  <Edit size={20} /> Editar Cadastro
@@ -269,74 +306,27 @@ Saiba mais no App O Que Tem Perto!`;
             </div>
             <form onSubmit={handleUpdateUserSubmit} className="p-8 overflow-y-auto space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div className="md:col-span-2 bg-blue-50 p-4 rounded-2xl border border-blue-100 mb-2">
-                    <label className="block text-[10px] font-black text-blue-400 uppercase mb-1">Função no App (Role)</label>
-                    <select 
-                      value={editingUser.role} 
-                      onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})}
-                      className="w-full p-4 bg-white border border-blue-200 rounded-2xl focus:ring-2 focus:ring-primary outline-none text-sm font-black text-primary"
-                    >
-                       <option value="client">Cliente Comum</option>
-                       <option value="pro">Prestador de Serviço</option>
-                       <option value="business">Comércio / Loja</option>
+                 <div className="md:col-span-2 bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                    <label className="block text-[10px] font-black text-blue-400 uppercase mb-1">Função (Role)</label>
+                    <select value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})} className="w-full p-4 bg-white border border-blue-200 rounded-2xl focus:ring-2 focus:ring-primary outline-none font-black text-primary">
+                       <option value="client">Cliente</option>
+                       <option value="pro">Prestador</option>
+                       <option value="business">Comércio</option>
                        <option value="admin">Administrador</option>
                     </select>
                  </div>
                  <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Nome Completo / Fantasia</label>
-                    <input type="text" value={editingUser.name} onChange={e => setEditingUser({...editingUser, name: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none text-sm font-bold" />
-                 </div>
-                 <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Categoria</label>
-                    <select value={editingUser.category || ''} onChange={e => setEditingUser({...editingUser, category: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none text-sm font-bold">
-                       <option value="">Nenhuma</option>
-                       {CATEGORIES.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                 </div>
-                 <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Bairro</label>
-                    <select value={editingUser.neighborhood || ''} onChange={e => setEditingUser({...editingUser, neighborhood: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none text-sm font-bold">
-                       <option value="">Selecione...</option>
-                       {ALLOWED_NEIGHBORHOODS.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Nome</label>
+                    <input type="text" value={editingUser.name} onChange={e => setEditingUser({...editingUser, name: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none font-bold" />
                  </div>
                  <div>
                     <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">WhatsApp</label>
-                    <input type="tel" value={editingUser.phone || ''} onChange={e => setEditingUser({...editingUser, phone: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none text-sm font-bold" />
+                    <input type="tel" value={editingUser.phone || ''} onChange={e => setEditingUser({...editingUser, phone: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none font-bold" />
                  </div>
-                 <div className="md:col-span-2">
-                    <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Endereço Completo</label>
-                    <input type="text" value={editingUser.address || ''} onChange={e => setEditingUser({...editingUser, address: e.target.value})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none text-sm font-bold" />
-                 </div>
-                 
-                 {/* Edição de Redes Sociais no Admin */}
-                 {(editingUser.role === 'pro' || editingUser.role === 'business') && (
-                    <div className="md:col-span-2 space-y-4">
-                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b pb-1 mb-2">Redes Sociais</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="relative">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 flex items-center gap-1"><Instagram size={10}/> Instagram</label>
-                                <input type="text" value={editingUser.socials?.instagram || ''} onChange={e => setEditingUser({...editingUser, socials: {...(editingUser.socials || {}), instagram: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl text-xs outline-none" placeholder="@usuario ou link" />
-                            </div>
-                            <div className="relative">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 flex items-center gap-1"><Facebook size={10}/> Facebook</label>
-                                <input type="text" value={editingUser.socials?.facebook || ''} onChange={e => setEditingUser({...editingUser, socials: {...(editingUser.socials || {}), facebook: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl text-xs outline-none" placeholder="link" />
-                            </div>
-                            <div className="relative">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 flex items-center gap-1"><Globe size={10}/> Website</label>
-                                <input type="text" value={editingUser.socials?.website || ''} onChange={e => setEditingUser({...editingUser, socials: {...(editingUser.socials || {}), website: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl text-xs outline-none" placeholder="https://..." />
-                            </div>
-                            <div className="relative">
-                                <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 flex items-center gap-1"><MapPin size={10}/> Google Meu Negócio</label>
-                                <input type="text" value={editingUser.socials?.googleMyBusiness || ''} onChange={e => setEditingUser({...editingUser, socials: {...(editingUser.socials || {}), googleMyBusiness: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl text-xs outline-none" placeholder="link" />
-                            </div>
-                        </div>
-                    </div>
-                 )}
               </div>
               <div className="flex gap-4 pt-4">
-                 <button type="submit" className="flex-1 bg-primary text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 hover:bg-primary-dark transition-all">SALVAR ALTERAÇÕES</button>
-                 <button type="button" onClick={() => setEditingUser(null)} className="flex-1 bg-gray-100 text-gray-500 font-black py-4 rounded-2xl hover:bg-gray-200 transition-all">CANCELAR</button>
+                 <button type="submit" className="flex-1 bg-primary text-white font-black py-4 rounded-2xl shadow-xl hover:bg-primary-dark transition-all">SALVAR</button>
+                 <button type="button" onClick={() => setEditingUser(null)} className="flex-1 bg-gray-100 text-gray-500 font-black py-4 rounded-2xl hover:bg-gray-200">CANCELAR</button>
               </div>
             </form>
           </div>
@@ -359,33 +349,368 @@ Saiba mais no App O Que Tem Perto!`;
             { id: 'identity', icon: <Palette size={20}/>, label: 'Identidade' },
             { id: 'marketing', icon: <Share2 size={20}/>, label: 'Divulgação' },
             { id: 'campaign', icon: <Megaphone size={20}/>, label: 'Campanhas' },
-            { id: 'tools', icon: <Database size={20}/>, label: 'Ferramentas' },
+            { id: 'tools', icon: <History size={20}/>, label: 'Resiliência' },
           ].map(item => (
             <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl text-sm font-bold transition-all ${activeTab === item.id ? 'bg-primary text-white shadow-lg' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>
               {item.icon} {item.label}
             </button>
           ))}
         </nav>
-        <div className="p-4 border-t border-white/5"><button onClick={onLogout} className="w-full flex items-center gap-2 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl text-sm font-bold transition-colors"><LogOut size={18}/> Sair</button></div>
+        <div className="p-4 border-t border-white/5">
+          <button onClick={onLogout} className="w-full flex items-center gap-2 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl text-sm font-bold transition-colors">
+            <LogOut size={18}/> Sair
+          </button>
+        </div>
       </aside>
 
-      {/* Content */}
+      {/* Main Content */}
       <main className="flex-1 md:ml-72 p-6 md:p-10 pb-32">
         <header className="mb-10 flex justify-between items-center">
-           <div><h1 className="text-3xl font-black text-gray-800 uppercase tracking-tight">Painel Administrativo</h1><p className="text-gray-500 font-medium">Controle Total do Sistema</p></div>
+           <div>
+             <h1 className="text-3xl font-black text-gray-800 uppercase tracking-tight">
+               {activeTab === 'users' ? 'Controle Total do Sistema' : 'Painel Administrativo'}
+             </h1>
+             <p className="text-gray-500 font-medium">
+               {activeTab === 'users' ? 'Gerenciamento de Usuários e Destaques' : 'Gestão de Conteúdo e Serviços'}
+             </p>
+           </div>
            <button onClick={handleSaveConfig} disabled={isSavingConfig} className="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-2xl font-black shadow-xl flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50">
              {isSavingConfig ? <RefreshCw className="animate-spin" /> : <Save />} SALVAR ALTERAÇÕES
            </button>
         </header>
 
-        {/* DASHBOARD TAB */}
+        {activeTab === 'users' && (
+           <div className="space-y-8 animate-in fade-in duration-500">
+              {/* Filtros e Busca */}
+              <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                 <div className="flex bg-gray-50 p-1 rounded-2xl w-full md:w-auto">
+                    {[
+                      { id: 'all', label: 'Todos' },
+                      { id: 'pro', label: 'Prestadores' },
+                      { id: 'business', label: 'Lojas' },
+                      { id: 'client', label: 'Clientes' }
+                    ].map(tab => (
+                      <button 
+                        key={tab.id}
+                        onClick={() => setUserFilter(tab.id as any)}
+                        className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${userFilter === tab.id ? 'bg-white text-primary shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                 </div>
+                 <div className="relative w-full md:w-72">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Buscar usuário..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-primary font-bold text-sm"
+                    />
+                 </div>
+              </div>
+
+              {/* Tabela de Usuários */}
+              <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                       <thead className="bg-gray-50 border-b border-gray-100">
+                          <tr>
+                             <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nome / Email</th>
+                             <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Papel</th>
+                             <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Destaque</th>
+                             <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Ações</th>
+                          </tr>
+                       </thead>
+                       <tbody className="divide-y divide-gray-50">
+                          {filteredUsers.map(user => (
+                             <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-8 py-5">
+                                   <div className="flex items-center gap-4">
+                                      <div className="w-12 h-12 rounded-2xl bg-gray-100 overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+                                         {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 font-black"><Users size={20}/></div>}
+                                      </div>
+                                      <div className="overflow-hidden">
+                                         <p className="font-black text-gray-800 text-sm truncate">{user.name}</p>
+                                         <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                                      </div>
+                                   </div>
+                                </td>
+                                <td className="px-8 py-5">
+                                   <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                                      user.role === 'pro' ? 'bg-orange-100 text-orange-600' :
+                                      user.role === 'business' ? 'bg-green-100 text-green-600' :
+                                      user.role === 'client' ? 'bg-blue-100 text-blue-600' : 'bg-purple-100 text-purple-600'
+                                   }`}>
+                                      {user.role === 'pro' ? 'Prestador' : user.role === 'business' ? 'Loja' : user.role === 'client' ? 'Cliente' : 'Admin'}
+                                   </span>
+                                </td>
+                                <td className="px-8 py-5">
+                                   {isHighlighted(user) ? (
+                                      <div className="flex items-center gap-3">
+                                         <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
+                                            <Star size={10} fill="currentColor" /> DESTAQUE ({getRemainingDays(user.highlightExpiresAt!)}d)
+                                         </span>
+                                         <button onClick={() => handleRemoveHighlight(user)} className="text-red-400 hover:text-red-600 p-1" title="Remover Destaque"><X size={14}/></button>
+                                      </div>
+                                   ) : (
+                                      <div className="flex items-center gap-2 group relative">
+                                         <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">NORMAL</span>
+                                         {(user.role === 'pro' || user.role === 'business') && (
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                               {[2, 7, 15, 30].map(d => (
+                                                  <button 
+                                                     key={d}
+                                                     onClick={() => handleSetHighlight(user, d)}
+                                                     className="bg-white border border-gray-200 hover:border-primary hover:text-primary text-[8px] font-black px-2 py-0.5 rounded transition-all shadow-sm"
+                                                  >
+                                                     {d}D
+                                                  </button>
+                                               ))}
+                                            </div>
+                                         )}
+                                      </div>
+                                   )}
+                                </td>
+                                <td className="px-8 py-5 text-right">
+                                   <div className="flex justify-end gap-2">
+                                      <button onClick={() => setEditingUser(user)} className="p-2 text-gray-400 hover:text-primary transition-colors bg-gray-50 rounded-xl" title="Editar"><Edit size={18}/></button>
+                                      <button 
+                                         onClick={() => {
+                                            if(window.confirm(`Deseja ${user.status === 'active' ? 'bloquear' : 'desbloquear'} este usuário?`)) {
+                                               onUpdateUser({...user, status: user.status === 'active' ? 'banned' : 'active'});
+                                            }
+                                         }}
+                                         className={`p-2 rounded-xl transition-colors ${user.status === 'active' ? 'text-gray-400 hover:text-orange-500' : 'text-green-500 hover:bg-green-50'}`}
+                                         title={user.status === 'active' ? "Bloquear" : "Ativar"}
+                                      >
+                                         {user.status === 'active' ? <Lock size={18} /> : <Unlock size={18} />}
+                                      </button>
+                                      <button 
+                                         onClick={() => { if(confirm('Excluir permanentemente?')) onDeleteUser(user.id); }}
+                                         className="p-2 text-gray-400 hover:text-red-500 transition-colors bg-gray-50 rounded-xl"
+                                         title="Excluir"
+                                      >
+                                         <Trash2 size={18}/>
+                                      </button>
+                                   </div>
+                                </td>
+                             </tr>
+                          ))}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+           </div>
+        )}
+
+        {activeTab === 'util' && (
+           <div className="space-y-10 animate-in fade-in duration-500">
+              <div className="flex items-center gap-3 mb-6 bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                <Info size={20} className="text-blue-500" />
+                <p className="text-xs font-bold text-blue-800 uppercase">Gerencie aqui os números de emergência, utilidades públicas e horários de ônibus do app.</p>
+              </div>
+
+              {/* Categorias de Utilidades */}
+              {configForm.utilityCategories?.map((cat, catIndex) => (
+                <div key={cat.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden">
+                   <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <div className="flex flex-col gap-1">
+                           <button onClick={() => handleMoveUtilityCategory(catIndex, 'up')} disabled={catIndex === 0} className="text-gray-400 hover:text-primary disabled:opacity-30"><ArrowUp size={14} /></button>
+                           <button onClick={() => handleMoveUtilityCategory(catIndex, 'down')} disabled={catIndex === (configForm.utilityCategories?.length || 0) - 1} className="text-gray-400 hover:text-primary disabled:opacity-30"><ArrowDown size={14} /></button>
+                        </div>
+                        <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight flex items-center gap-2">
+                          <ListPlus size={20} className="text-primary" /> {cat.title}
+                        </h3>
+                      </div>
+                      <span className="text-[10px] font-black text-gray-400 uppercase">{cat.items.length} itens</span>
+                   </div>
+                   <div className="p-6 space-y-4">
+                      {cat.items.map((it, itIndex) => (
+                        <div key={it.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 group relative items-end">
+                           <div className="md:col-span-1 flex flex-col items-center gap-1">
+                              <button onClick={() => handleMoveUtilityItem(cat.id, itIndex, 'up')} disabled={itIndex === 0} className="p-1 text-gray-400 hover:text-primary disabled:opacity-20"><ArrowUp size={14} /></button>
+                              <button onClick={() => handleMoveUtilityItem(cat.id, itIndex, 'down')} disabled={itIndex === cat.items.length - 1} className="p-1 text-gray-400 hover:text-primary disabled:opacity-20"><ArrowDown size={14} /></button>
+                           </div>
+                           <div className="md:col-span-2">
+                              <label className="block text-[8px] font-black text-gray-400 uppercase mb-1">Nome</label>
+                              <input type="text" value={it.name} onChange={e => handleUpdateUtilityItem(cat.id, it.id, 'name', e.target.value)} className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold" />
+                           </div>
+                           <div className="md:col-span-2">
+                              <label className="block text-[8px] font-black text-gray-400 uppercase mb-1">Número/Link</label>
+                              <input type="text" value={it.number} onChange={e => handleUpdateUtilityItem(cat.id, it.id, 'number', e.target.value)} className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold" />
+                           </div>
+                           <div className="md:col-span-6">
+                              <label className="block text-[8px] font-black text-gray-400 uppercase mb-1">Descrição Breve</label>
+                              <input type="text" value={it.description} onChange={e => handleUpdateUtilityItem(cat.id, it.id, 'description', e.target.value)} className="w-full p-2 bg-white rounded-lg border border-gray-200 text-xs font-bold" />
+                           </div>
+                           <div className="md:col-span-1 flex justify-center">
+                              <button onClick={() => handleRemoveUtilityItem(cat.id, it.id)} className="p-2 text-red-400 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
+                           </div>
+                        </div>
+                      ))}
+                      <button onClick={() => handleAddUtilityItem(cat.id)} className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 font-black text-xs uppercase hover:bg-gray-50 hover:border-primary hover:text-primary transition-all flex items-center justify-center gap-2">
+                        <PlusCircle size={16} /> Adicionar Item em {cat.title}
+                      </button>
+                   </div>
+                </div>
+              ))}
+
+              {/* Horários de Ônibus */}
+              <div className="bg-white rounded-[2rem] border border-orange-100 shadow-xl overflow-hidden">
+                <div className="p-6 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
+                    <h3 className="text-lg font-black text-orange-800 uppercase tracking-tight flex items-center gap-2">
+                      <Bus size={20} className="text-orange-600" /> Horários de Ônibus
+                    </h3>
+                </div>
+                <div className="p-6 space-y-4">
+                    {configForm.busLines?.map((bus, busIndex) => (
+                      <div key={bus.id} className="flex gap-3 p-4 bg-orange-50/30 rounded-2xl border border-orange-100 items-end">
+                          <div className="flex flex-col gap-1 pr-2 border-r border-orange-100">
+                             <button onClick={() => handleMoveBusLine(busIndex, 'up')} disabled={busIndex === 0} className="p-1 text-orange-300 hover:text-orange-600 disabled:opacity-20"><ArrowUp size={14} /></button>
+                             <button onClick={() => handleMoveBusLine(busIndex, 'down')} disabled={busIndex === (configForm.busLines?.length || 0) - 1} className="p-1 text-orange-300 hover:text-orange-600 disabled:opacity-20"><ArrowDown size={14} /></button>
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-[8px] font-black text-orange-400 uppercase mb-1">Nome da Linha</label>
+                            <input type="text" value={bus.name} onChange={e => handleUpdateBusLine(bus.id, 'name', e.target.value)} className="w-full p-2 bg-white rounded-lg border border-orange-200 text-xs font-bold" />
+                          </div>
+                          <div className="flex-[2] flex gap-2">
+                             <div className="flex-1">
+                                <label className="block text-[8px] font-black text-orange-400 uppercase mb-1">URL (Link do Horário)</label>
+                                <input type="text" value={bus.url} onChange={e => handleUpdateBusLine(bus.id, 'url', e.target.value)} className="w-full p-2 bg-white rounded-lg border border-orange-200 text-xs font-mono" />
+                             </div>
+                             <button onClick={() => handleRemoveBusLine(bus.id)} className="p-2 text-red-400 hover:text-red-600 transition-colors"><Trash2 size={18} /></button>
+                          </div>
+                      </div>
+                    ))}
+                    <button onClick={handleAddBusLine} className="w-full py-4 border-2 border-dashed border-orange-200 rounded-2xl text-orange-400 font-black text-xs uppercase hover:bg-gray-50 hover:border-orange-400 hover:text-orange-600 transition-all flex items-center justify-center gap-2">
+                        <PlusCircle size={16} /> Adicionar Linha
+                    </button>
+                </div>
+              </div>
+           </div>
+        )}
+
+        {activeTab === 'identity' && (
+           <div className="space-y-10 animate-in fade-in duration-500">
+             <div className="bg-white rounded-[2.5rem] border border-blue-100 shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white flex items-center gap-4">
+                   <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Palette size={32} /></div>
+                   <div>
+                      <h2 className="text-2xl font-black uppercase tracking-tight">Identidade Visual e Textos</h2>
+                      <p className="text-blue-100 text-sm font-medium">Personalize as cores, logos e textos de interface do aplicativo.</p>
+                   </div>
+                </div>
+
+                <div className="p-8 space-y-10">
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pb-10 border-b border-gray-100">
+                      <div className="space-y-3">
+                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Logo do Aplicativo (PNG Transparente)</label>
+                         <div className="relative group aspect-square w-40 h-40 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden mx-auto md:mx-0">
+                            {configForm.logoUrl ? <img src={configForm.logoUrl} className="w-full h-full object-contain p-4" /> : <AppLogo className="w-20 h-20 opacity-30" />}
+                            <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all cursor-pointer">
+                               <Upload className="text-white mb-2" />
+                               <span className="text-white font-black text-[10px] uppercase">Upload Logo</span>
+                               <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'logo')} />
+                            </label>
+                         </div>
+                         <button onClick={() => configForm.logoUrl && window.open(configForm.logoUrl, '_blank')} className="w-full md:w-40 bg-gray-100 text-gray-600 font-bold py-2 rounded-xl text-[10px] uppercase hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+                            <Download size={14} /> Baixar Atual
+                         </button>
+                      </div>
+
+                      <div className="md:col-span-2 space-y-6">
+                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Cores do Tema</label>
+                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                               <p className="text-xs font-bold text-gray-600">Primária</p>
+                               <div className="flex gap-2">
+                                  <input type="color" value={configForm.primaryColor} onChange={e => setConfigForm({...configForm, primaryColor: e.target.value})} className="h-12 w-12 cursor-pointer border-none rounded-xl" />
+                                  <input type="text" value={configForm.primaryColor} onChange={e => setConfigForm({...configForm, primaryColor: e.target.value})} className="flex-1 p-3 bg-gray-50 rounded-xl text-xs font-mono font-bold uppercase" />
+                               </div>
+                            </div>
+                            <div className="space-y-2">
+                               <p className="text-xs font-bold text-gray-600">Accent</p>
+                               <div className="flex gap-2">
+                                  <input type="color" value={configForm.accentColor} onChange={e => setConfigForm({...configForm, accentColor: e.target.value})} className="h-12 w-12 cursor-pointer border-none rounded-xl" />
+                                  <input type="text" value={configForm.accentColor} onChange={e => setConfigForm({...configForm, accentColor: e.target.value})} className="flex-1 p-3 bg-gray-50 rounded-xl text-xs font-mono font-bold uppercase" />
+                               </div>
+                            </div>
+                            <div className="space-y-2">
+                               <p className="text-xs font-bold text-gray-600">Sucesso</p>
+                               <div className="flex gap-2">
+                                  <input type="color" value={configForm.tertiaryColor} onChange={e => setConfigForm({...configForm, tertiaryColor: e.target.value})} className="h-12 w-12 cursor-pointer border-none rounded-xl" />
+                                  <input type="text" value={configForm.tertiaryColor} onChange={e => setConfigForm({...configForm, tertiaryColor: e.target.value})} className="flex-1 p-3 bg-gray-50 rounded-xl text-xs font-mono font-bold uppercase" />
+                               </div>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className="space-y-6">
+                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 pb-2">Textos da Interface</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div className="space-y-2">
+                            <label className="block text-xs font-bold text-gray-700">Título do Cabeçalho (Header)</label>
+                            <input type="text" value={configForm.headerTitle || ''} onChange={e => setConfigForm({...configForm, headerTitle: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-primary font-bold" placeholder="O Que Tem Perto?" />
+                         </div>
+                         <div className="space-y-2">
+                            <label className="block text-xs font-bold text-gray-700">Subtítulo do Cabeçalho</label>
+                            <input type="text" value={configForm.headerSubtitle || ''} onChange={e => setConfigForm({...configForm, headerSubtitle: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-primary font-bold" placeholder="Águas Claras e Região" />
+                         </div>
+                         <div className="space-y-2">
+                            <label className="block text-xs font-bold text-gray-700">Texto Principal do Rodapé (Footer)</label>
+                            <input type="text" value={configForm.footerText || ''} onChange={e => setConfigForm({...configForm, footerText: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-primary font-bold" placeholder="Desenvolvido pela" />
+                         </div>
+                         <div className="space-y-2">
+                            <label className="block text-xs font-bold text-gray-700">Subtexto do Rodapé</label>
+                            <input type="text" value={configForm.footerSubtext || ''} onChange={e => setConfigForm({...configForm, footerSubtext: e.target.value})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-primary font-bold" placeholder="Todos os direitos reservados" />
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+
+             <div className="bg-white rounded-[2.5rem] border border-green-100 shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-8 text-white flex items-center gap-4">
+                   <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Users size={32} /></div>
+                   <div>
+                      <h2 className="text-2xl font-black uppercase tracking-tight">Recursos Sociais</h2>
+                      <p className="text-emerald-100 text-sm font-medium">Configure elementos de prova social e engajamento da comunidade.</p>
+                   </div>
+                </div>
+
+                <div className="p-8">
+                   <div className="flex items-center justify-between p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
+                      <div className="flex gap-4">
+                         <div className="p-3 bg-white rounded-2xl text-emerald-600 shadow-sm"><CheckCircle2 size={24} /></div>
+                         <div>
+                            <h3 className="font-black text-emerald-900 uppercase tracking-tight text-sm">Contador de Usuários na Home</h3>
+                            <p className="text-emerald-700 text-xs font-medium">Exibe "+X pessoas já fazem parte" para novos visitantes.</p>
+                         </div>
+                      </div>
+                      <button 
+                        onClick={() => setConfigForm({...configForm, showUserCounter: !configForm.showUserCounter})}
+                        className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${configForm.showUserCounter ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white text-emerald-600'}`}
+                      >
+                         {configForm.showUserCounter ? <ToggleRight /> : <ToggleLeft />}
+                         {configForm.showUserCounter ? 'ATIVADO' : 'DESATIVADO'}
+                      </button>
+                   </div>
+                </div>
+             </div>
+           </div>
+        )}
+
         {activeTab === 'dashboard' && (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in">
               {[
                 { label: 'Prestadores', count: localUsers.filter(u => u.role === 'pro').length, color: 'text-orange-500', bg: 'bg-orange-50', icon: <Briefcase /> },
                 { label: 'Comércios', count: localUsers.filter(u => u.role === 'business').length, color: 'text-green-500', bg: 'bg-green-50', icon: <Store /> },
                 { label: 'Clientes', count: localUsers.filter(u => u.role === 'client').length, color: 'text-blue-500', bg: 'bg-blue-50', icon: <Users /> },
-                { label: 'Administradores', count: localUsers.filter(u => u.role === 'admin' || u.role === 'master').length, color: 'text-purple-500', bg: 'bg-purple-50', icon: <Shield /> },
+                { label: 'Admins', count: localUsers.filter(u => u.role === 'admin' || u.role === 'master').length, color: 'text-purple-500', bg: 'bg-purple-50', icon: <Shield /> },
               ].map(stat => (
                 <div key={stat.label} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex items-center justify-between">
                    <div><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</p><h3 className={`text-3xl font-black ${stat.color} mt-1`}>{stat.count}</h3></div>
@@ -395,305 +720,216 @@ Saiba mais no App O Que Tem Perto!`;
            </div>
         )}
 
-        {/* IDENTITY TAB */}
-        {activeTab === 'identity' && (
-           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm max-w-3xl animate-in fade-in space-y-10">
-              <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight flex items-center gap-2"><Palette size={24} className="text-primary"/> Identidade Visual e Textos</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-b pb-8">
-                 <div className="space-y-6">
+        {activeTab === 'marketing' && (
+           <div className="space-y-10 animate-in fade-in duration-500">
+             <div className="bg-white rounded-[2.5rem] border border-blue-100 shadow-xl overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white flex items-center gap-4">
+                   <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><QrCode size={32} /></div>
+                   <div>
+                      <h2 className="text-2xl font-black uppercase tracking-tight">QR Code do App</h2>
+                      <p className="text-blue-100 text-sm font-medium">Divulgue seu aplicativo em materiais impressos.</p>
+                   </div>
+                </div>
+                <div className="p-10 flex flex-col md:flex-row items-center gap-12">
+                   <div className="w-64 h-64 bg-gray-50 rounded-[2.5rem] p-6 border-8 border-gray-100 shadow-inner flex items-center justify-center">
+                      <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(configForm.shareUrl || window.location.origin)}`} alt="QR Code" className="w-full h-full object-contain" />
+                   </div>
+                   <div className="flex-1 space-y-6">
+                      <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight">QR Code</h3>
+                      <p className="text-gray-500 font-medium mt-1">Aponte a câmera do celular para abrir o aplicativo instantaneamente.</p>
+                      <button onClick={handleDownloadQRCode} className="bg-primary hover:bg-primary-dark text-white font-black py-4 px-10 rounded-2xl shadow-xl flex items-center gap-3 transition-all active:scale-95">
+                         <Download size={20} /> Baixar para Impressão
+                      </button>
+                   </div>
+                </div>
+             </div>
+             <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
+                <div className="p-8 bg-gray-50 border-b border-gray-100">
+                   <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight flex items-center gap-2"><Globe size={24} className="text-primary" /> Links de Divulgação</h3>
+                </div>
+                <div className="p-8 space-y-8">
+                   <div className="space-y-3">
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">URL de Compartilhamento</label>
+                      <div className="flex gap-2">
+                         <div className="relative flex-1">
+                            <Share2 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input type="text" value={configForm.shareUrl || ''} onChange={e => setConfigForm({...configForm, shareUrl: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary font-mono text-sm" />
+                         </div>
+                         <button onClick={() => copyToClipboard(configForm.shareUrl || '')} className="p-4 bg-gray-100 text-gray-400 hover:text-primary rounded-2xl transition-all"><Copy size={20} /></button>
+                      </div>
+                   </div>
+                   <div className="space-y-3">
+                      <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Instagram Principal</label>
+                      <div className="flex gap-2">
+                         <div className="relative flex-1">
+                            <Instagram className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input type="text" value={configForm.instagramUrl || ''} onChange={e => setConfigForm({...configForm, instagramUrl: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary font-mono text-sm" />
+                         </div>
+                         <button onClick={() => copyToClipboard(configForm.instagramUrl || '')} className="p-4 bg-gray-100 text-gray-400 hover:text-primary rounded-2xl transition-all"><Copy size={20} /></button>
+                      </div>
+                   </div>
+                </div>
+             </div>
+           </div>
+        )}
+
+        {activeTab === 'campaign' && (
+          <div className="space-y-10 animate-in fade-in duration-500">
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
+               <div className="bg-gradient-to-r from-red-600 to-rose-600 p-8 text-white flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Heart size={32} /></div>
                     <div>
-                       <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Logo do Aplicativo (PNG Transparente)</label>
-                       <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-2xl border border-dashed border-gray-300">
-                          <div className="w-20 h-20 bg-white rounded-xl shadow-sm flex items-center justify-center overflow-hidden border">
-                             {configForm.logoUrl ? <img src={configForm.logoUrl} className="w-full h-full object-contain" /> : <AppLogo className="w-10 h-10" />}
+                       <h2 className="text-2xl font-black uppercase tracking-tight">Projeto Social (Doação)</h2>
+                       <p className="text-red-100 text-sm font-medium">Gerencie a causa social que aparece no aplicativo.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, active: !configForm.socialProject?.active}})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${configForm.socialProject?.active ? 'bg-white text-red-600 shadow-lg' : 'bg-red-800/50 text-red-200'}`}>
+                    {configForm.socialProject?.active ? <ToggleRight /> : <ToggleLeft />} {configForm.socialProject?.active ? 'PROJETO ATIVO NA HOME' : 'PROJETO INATIVO'}
+                  </button>
+               </div>
+               <div className="p-8 space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div className="space-y-4">
+                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Imagem do Projeto</label>
+                       <div className="relative group aspect-square bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden">
+                          {configForm.socialProject?.imageUrl ? <img src={configForm.socialProject.imageUrl} className="w-full h-full object-contain p-4" /> : <ImageIcon size={48} className="text-gray-300" />}
+                          <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all cursor-pointer">
+                             <Upload className="text-white mb-2" /><span className="text-white font-black text-[10px] uppercase">Mudar Foto</span>
+                             <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'social')} />
+                          </label>
+                       </div>
+                       <div className="space-y-4 pt-2">
+                          <div>
+                            <label className="block text-[8px] font-black text-gray-400 uppercase mb-1">Tamanho da Foto</label>
+                            <select value={configForm.socialProject?.imageScale || 'md'} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, imageScale: e.target.value as any}})} className="w-full p-3 bg-gray-50 rounded-xl text-xs font-bold outline-none border border-gray-100">
+                               <option value="sm">Pequeno</option><option value="md">Médio</option><option value="lg">Grande</option><option value="xl">Extra Grande</option>
+                            </select>
                           </div>
-                          <div className="flex-1 space-y-2">
-                             <label className="cursor-pointer block bg-primary text-white text-[10px] font-black uppercase text-center py-2 rounded-lg hover:bg-primary-dark">
-                                Upload Logo
-                                <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'logo')} />
-                             </label>
-                             <button onClick={handleDownloadLogo} className="w-full bg-white border text-gray-600 text-[10px] font-black uppercase py-2 rounded-lg hover:bg-gray-100">Baixar Atual</button>
+                          <div className="flex gap-2">
+                             <button onClick={() => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, transparentBg: !configForm.socialProject?.transparentBg}})} className={`flex-1 p-3 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all border ${configForm.socialProject?.transparentBg ? 'bg-primary text-white border-primary' : 'bg-white text-gray-400 border-gray-200'}`}>Fundo Transp.</button>
+                             <div className="flex-1">
+                                <label className="block text-[8px] font-black text-gray-400 uppercase mb-1">Cor Cabeçalho</label>
+                                <input type="color" value={configForm.socialProject?.headerColor || '#ef4444'} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, headerColor: e.target.value}})} className="w-full h-10 rounded-xl cursor-pointer" />
+                             </div>
                           </div>
                        </div>
                     </div>
+                    <div className="md:col-span-2 space-y-6">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                             <label className="block text-[10px] font-black text-gray-400 uppercase">Nome do Projeto</label>
+                             <input type="text" value={configForm.socialProject?.name || ''} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, name: e.target.value}})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary font-bold" placeholder="Projeto Gotinhas de Amor" />
+                          </div>
+                          <div className="space-y-2">
+                             <label className="block text-[10px] font-black text-gray-400 uppercase">Instagram (sem @)</label>
+                             <div className="relative">
+                                <Instagram size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input type="text" value={configForm.socialProject?.instagram || ''} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, instagram: e.target.value}})} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary font-bold" placeholder="gotinhasdeamorcapelania" />
+                             </div>
+                          </div>
+                          <div className="md:col-span-2 space-y-2">
+                             <label className="block text-[10px] font-black text-gray-400 uppercase">Chave Pix (E-mail)</label>
+                             <div className="relative">
+                                <QrCode size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input type="text" value={configForm.socialProject?.pixKey || ''} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, pixKey: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary font-mono text-sm" placeholder="gracachurchcl@gmail.com" />
+                             </div>
+                          </div>
+                       </div>
+                       <div className="space-y-2">
+                          <label className="block text-[10px] font-black text-gray-400 uppercase">Descrição do Projeto</label>
+                          <textarea rows={4} value={configForm.socialProject?.description || ''} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, description: e.target.value}})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary font-medium text-sm leading-relaxed" placeholder="Descreva aqui o trabalho social..." />
+                       </div>
+                    </div>
+                  </div>
+               </div>
+            </div>
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
+               <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Megaphone size={32} /></div>
+                    <div>
+                       <h2 className="text-2xl font-black uppercase tracking-tight">Campanha Banner (Home)</h2>
+                       <p className="text-blue-100 text-sm font-medium">Banner principal de destaque no topo da página inicial.</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setConfigForm({...configForm, campaign: {...configForm.campaign!, active: !configForm.campaign?.active}})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${configForm.campaign?.active ? 'bg-white text-blue-600 shadow-lg' : 'bg-blue-800/50 text-blue-200'}`}>
+                    {configForm.campaign?.active ? <ToggleRight /> : <ToggleLeft />} {configForm.campaign?.active ? 'EXIBIR BANNER NA HOME' : 'BANNER OCULTO'}
+                  </button>
+               </div>
+               <div className="p-8 space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                     <div className="space-y-4">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Imagem da Campanha</label>
+                        <div className="relative aspect-[16/9] md:aspect-auto md:h-64 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center overflow-hidden">
+                           {configForm.campaign?.imageUrl ? <img src={configForm.campaign.imageUrl} className="w-full h-full object-cover" /> : <ImageIcon size={48} className="text-gray-300" />}
+                           <label className="absolute inset-0 bg-black/60 opacity-0 hover:opacity-100 flex items-center justify-center transition-all cursor-pointer">
+                              <span className="text-white font-black text-[10px] uppercase">Selecionar Imagem</span>
+                              <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'campaign')} />
+                           </label>
+                        </div>
+                     </div>
+                     <div className="md:col-span-2 space-y-6">
+                        <div className="space-y-2">
+                           <label className="block text-[10px] font-black text-gray-400 uppercase">Título do Banner</label>
+                           <input type="text" value={configForm.campaign?.title || ''} onChange={e => setConfigForm({...configForm, campaign: {...configForm.campaign!, title: e.target.value}})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-blue-500 font-black text-lg" placeholder="Ofertas de Verão ou Nova Categoria" />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="block text-[10px] font-black text-gray-400 uppercase">Texto Informativo Breve</label>
+                           <input type="text" value={configForm.campaign?.description || ''} onChange={e => setConfigForm({...configForm, campaign: {...configForm.campaign!, description: e.target.value}})} className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-blue-500 font-bold" placeholder="Confira as novidades do comércio local..." />
+                        </div>
+                        <div className="space-y-2">
+                           <label className="block text-[10px] font-black text-gray-400 uppercase">Link de Destino ou URL da Imagem Externa</label>
+                           <div className="relative">
+                              <ExternalLink size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                              <input type="text" value={configForm.campaign?.link || ''} onChange={e => setConfigForm({...configForm, campaign: {...configForm.campaign!, link: e.target.value}})} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs" placeholder="https://..." />
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+          </div>
+        )}
 
-                    <div className="grid grid-cols-3 gap-3">
-                       <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Primária</label><input type="color" value={configForm.primaryColor} onChange={e => setConfigForm({...configForm, primaryColor: e.target.value})} className="h-10 w-full cursor-pointer bg-transparent" /></div>
-                       <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Accent</label><input type="color" value={configForm.accentColor} onChange={e => setConfigForm({...configForm, accentColor: e.target.value})} className="h-10 w-full cursor-pointer bg-transparent" /></div>
-                       <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Sucesso</label><input type="color" value={configForm.tertiaryColor} onChange={e => setConfigForm({...configForm, tertiaryColor: e.target.value})} className="h-10 w-full cursor-pointer bg-transparent" /></div>
+        {activeTab === 'tools' && (
+           <div className="space-y-8 animate-in fade-in duration-500">
+              <div className="bg-white rounded-[2.5rem] border border-purple-100 shadow-xl overflow-hidden">
+                 <div className="bg-gradient-to-r from-purple-600 to-indigo-600 p-8 text-white flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Settings size={32} /></div>
+                    <div>
+                       <h2 className="text-2xl font-black uppercase tracking-tight">Configurações do Painel</h2>
+                       <p className="text-purple-100 text-sm font-medium">Salve ou restaure apenas a identidade visual e links.</p>
                     </div>
                  </div>
-
-                 <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b pb-1">Textos da Interface</h4>
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Título do Cabeçalho (Header)</label><input type="text" value={configForm.appName} onChange={e => setConfigForm({...configForm, appName: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm font-bold" /></div>
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Subtítulo do Cabeçalho</label><input type="text" value={configForm.headerSubtitle || ''} onChange={e => setConfigForm({...configForm, headerSubtitle: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm" /></div>
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Texto Principal do Rodapé (Footer)</label><input type="text" value={configForm.footerText || ''} onChange={e => setConfigForm({...configForm, footerText: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm" /></div>
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Subtexto do Rodapé</label><input type="text" value={configForm.footerSubtext || ''} onChange={e => setConfigForm({...configForm, footerSubtext: e.target.value})} className="w-full p-3 bg-gray-50 border rounded-xl text-sm" /></div>
+                 <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <button onClick={handleExportConfigOnly} className="bg-indigo-500 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 active:scale-95"><Download size={20} /> EXPORTAR PREFERÊNCIAS</button>
+                    <label className="cursor-pointer bg-purple-50 border-2 border-dashed border-purple-200 rounded-3xl p-5 flex flex-col items-center justify-center hover:bg-purple-100">
+                       <UploadCloud className="text-purple-600 mb-1" />
+                       <span className="text-purple-600 font-bold text-xs uppercase">Importar Preferências</span>
+                       <input type="file" className="hidden" accept=".json" onChange={handleRestoreConfigOnly} />
+                    </label>
                  </div>
               </div>
-
-              <div className="space-y-4">
-                 <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b pb-1">Recursos Sociais</h4>
-                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+              <div className="bg-white rounded-[2.5rem] border border-blue-100 shadow-xl overflow-hidden">
+                 <div className="bg-gradient-to-r from-blue-600 to-primary p-8 text-white flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Database size={32} /></div>
                     <div>
-                       <p className="text-sm font-bold text-gray-800">Contador de Usuários na Home</p>
-                       <p className="text-[10px] text-gray-500">Exibe "+X pessoas já fazem parte" para novos visitantes.</p>
+                       <h2 className="text-2xl font-black uppercase tracking-tight">Backup Total do Sistema</h2>
+                       <p className="text-blue-100 text-sm font-medium">Snapshot completo: Usuários, Avaliações, Fotos e Configurações.</p>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                       <input 
-                         type="checkbox" 
-                         checked={configForm.showUserCounter} 
-                         onChange={e => setConfigForm({...configForm, showUserCounter: e.target.checked})}
-                         className="sr-only peer" 
-                       />
-                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                 </div>
+                 <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <button onClick={handleGenerateTotalSnapshot} className="bg-primary text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 active:scale-95"><DownloadCloud size={20} /> EXPORTAR SNAPSHOT TOTAL</button>
+                    <label className="cursor-pointer bg-red-50 border-2 border-dashed border-red-200 rounded-3xl p-5 flex flex-col items-center justify-center hover:bg-red-100">
+                       <RotateCcw className="text-red-600 mb-1" />
+                       <span className="text-red-600 font-bold text-xs uppercase">Restauração de Emergência</span>
+                       <input type="file" className="hidden" accept=".json" onChange={handleRestoreFromSnapshot} />
                     </label>
                  </div>
               </div>
            </div>
         )}
-
-        {/* UTIL TAB */}
-        {activeTab === 'util' && (
-          <div className="space-y-10 animate-in fade-in">
-             {utilityOrder.map((sectionId) => {
-                if (sectionId === 'bus') {
-                   return (
-                      <div key="bus" className="bg-white rounded-[2rem] p-8 border border-orange-100 shadow-sm">
-                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black text-orange-700 flex items-center gap-2 uppercase tracking-tight"><Bus size={24}/> Horários de Ônibus</h3>
-                            <div className="flex gap-2"><button onClick={() => moveSection('bus', 'up')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowUp size={18}/></button><button onClick={() => moveSection('bus', 'down')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowDown size={18}/></button></div>
-                         </div>
-                         <div className="space-y-4">
-                            {(configForm.busLines || []).map(line => (
-                               <div key={line.id} className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-orange-50/50 p-4 rounded-2xl">
-                                  <input type="text" value={line.name} onChange={e => editBusLine(line.id, 'name', e.target.value)} className="p-3 bg-white border border-orange-100 rounded-xl text-sm font-bold outline-none" placeholder="Nome da Linha" />
-                                  <input type="text" value={line.url} onChange={e => editBusLine(line.id, 'url', e.target.value)} className="p-3 bg-white border border-orange-100 rounded-xl text-sm outline-none" placeholder="Link (URL)" />
-                               </div>
-                            ))}
-                            <button onClick={addBusLine} className="w-full py-4 border-2 border-dashed border-orange-200 text-orange-400 rounded-2xl font-black text-xs uppercase hover:bg-orange-50 transition-all">+ Adicionar Linha</button>
-                         </div>
-                      </div>
-                   );
-                }
-                const cat = (configForm.utilityCategories || []).find(c => c.id === sectionId);
-                if (!cat) return null;
-                return (
-                   <div key={cat.id} className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-                      <div className="flex justify-between items-center mb-6">
-                         <h3 className="text-xl font-black text-gray-800 flex items-center gap-2 uppercase tracking-tight">{cat.title}</h3>
-                         <div className="flex gap-2"><button onClick={() => moveSection(cat.id, 'up')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowUp size={18}/></button><button onClick={() => moveSection(cat.id, 'down')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowDown size={18}/></button></div>
-                      </div>
-                      <div className="space-y-4">
-                         {cat.items.map(item => (
-                            <div key={item.id} className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-gray-50 p-4 rounded-2xl border border-gray-100 relative group">
-                               <input type="text" value={item.name} onChange={e => editUtilityItem(cat.id, item.id, 'name', e.target.value)} className="p-3 bg-white border border-gray-100 rounded-xl text-sm font-black outline-none" placeholder="Nome" />
-                               <input type="text" value={item.number} onChange={e => editUtilityItem(cat.id, item.id, 'number', e.target.value)} className="p-3 bg-white border border-gray-100 rounded-xl text-sm font-bold text-primary outline-none" placeholder="Telefone" />
-                               <input type="text" value={item.description} onChange={e => editUtilityItem(cat.id, item.id, 'description', e.target.value)} className="p-3 bg-white border border-gray-100 rounded-xl text-sm font-medium text-gray-500 outline-none md:col-span-1" placeholder="Descrição Curta" />
-                               <button onClick={() => removeUtilityItem(cat.id, item.id)} className="bg-red-50 text-red-400 p-3 rounded-xl hover:bg-red-100"><Trash2 size={16} className="mx-auto"/></button>
-                            </div>
-                         ))}
-                         <button onClick={() => addUtilityItem(cat.id)} className="w-full py-4 border-2 border-dashed border-orange-200 text-gray-400 rounded-2xl font-black text-xs uppercase hover:bg-gray-50 transition-all">+ Adicionar Item em {cat.title}</button>
-                      </div>
-                   </div>
-                );
-             })}
-          </div>
-        )}
-
-        {/* MARKETING TAB */}
-        {activeTab === 'marketing' && (
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in">
-              <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm text-center">
-                 <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-8 flex items-center justify-center gap-2"><QrCode size={24} className="text-primary"/> QR Code do App</h3>
-                 <div className="w-48 h-48 mx-auto bg-gray-50 border-8 border-gray-50 rounded-[2.5rem] p-4 flex items-center justify-center mb-6">
-                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(configForm.shareUrl || window.location.href)}`} alt="QR Code" className="w-full h-full object-contain" />
-                 </div>
-                 <p className="text-sm text-gray-500 font-medium mb-8">Aponte a câmera do celular para abrir o aplicativo instantaneamente.</p>
-                 <button onClick={() => window.print()} className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all"><Download size={18}/> Baixar para Impressão</button>
-              </div>
-              <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-                 <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight mb-8 flex items-center gap-2"><Share2 size={24} className="text-primary"/> Links de Divulgação</h3>
-                 <div className="space-y-6">
-                    <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100"><p className="text-[10px] font-black text-gray-400 uppercase mb-1">URL de Compartilhamento</p><div className="flex items-center justify-between gap-3"><code className="text-sm font-bold text-gray-800 truncate">{configForm.shareUrl || window.location.href}</code><button onClick={() => { navigator.clipboard.writeText(configForm.shareUrl || window.location.href); alert('Copiado!'); }} className="p-3 bg-white text-primary rounded-xl shadow-sm border border-gray-100 hover:scale-110 active:scale-90 transition-all"><Copy size={16}/></button></div></div>
-                    <div className="p-4 bg-pink-50 rounded-2xl border border-pink-100"><p className="text-[10px] font-black text-pink-400 uppercase mb-1">Instagram Principal</p><div className="flex items-center justify-between gap-3"><code className="text-sm font-bold text-pink-800 truncate">{configForm.instagramUrl || '@crinfinformatica'}</code><button onClick={() => window.open(configForm.instagramUrl || 'https://instagram.com/crinfinformatica', '_blank')} className="p-3 bg-white text-pink-600 rounded-xl shadow-sm border border-pink-100 hover:scale-110 active:scale-90 transition-all"><ExternalLink size={16}/></button></div></div>
-                 </div>
-              </div>
-           </div>
-        )}
-
-        {/* CAMPAIGN TAB */}
-        {activeTab === 'campaign' && (
-           <div className="space-y-8 animate-in fade-in">
-              <div className="bg-white rounded-[2rem] p-8 border border-red-50 shadow-sm max-w-2xl">
-                 <div className="flex justify-between items-center mb-8">
-                    <h3 className="text-xl font-black text-red-600 uppercase tracking-tight flex items-center gap-2"><Heart size={24} fill="currentColor"/> Projeto Social (Doação)</h3>
-                    <button onClick={handleShareCampaign} className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-all"><Share2 size={20}/></button>
-                 </div>
-                 <div className="space-y-6">
-                    <label className="flex items-center gap-2 font-black text-gray-700 uppercase text-xs"><input type="checkbox" checked={configForm.socialProject?.active} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, active: e.target.checked}})} className="w-5 h-5 rounded border-gray-300 text-red-500" /> PROJETO ATIVO NA HOME</label>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-6">
-                       <div className="flex flex-col gap-4">
-                          <label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Imagem do Projeto</label>
-                          <div className={`w-full h-40 rounded-2xl overflow-hidden border flex items-center justify-center relative ${configForm.socialProject?.transparentBg ? 'bg-transparent' : 'bg-gray-100'}`}>
-                             {configForm.socialProject?.imageUrl ? <img src={configForm.socialProject.imageUrl} className="w-full h-full object-contain" /> : <Heart size={40} className="text-gray-300"/>}
-                             <div className="absolute top-2 right-2 bg-black/50 text-white px-2 py-1 rounded text-[8px] font-black uppercase">Preview</div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                             <label className="cursor-pointer bg-red-50 text-red-600 text-[10px] font-black uppercase text-center py-3 rounded-xl hover:bg-red-100 transition-all">
-                                Mudar Foto
-                                <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'social')} />
-                             </label>
-                             <div className="bg-gray-50 border rounded-xl p-2">
-                                <label className="block text-[8px] font-black text-gray-400 uppercase mb-1">Tamanho da Foto</label>
-                                <select 
-                                   value={configForm.socialProject?.imageScale || 'md'} 
-                                   onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, imageScale: e.target.value as any}})}
-                                   className="w-full text-[10px] font-bold outline-none bg-transparent"
-                                >
-                                   <option value="sm">Pequeno</option>
-                                   <option value="md">Médio</option>
-                                   <option value="lg">Grande</option>
-                                   <option value="xl">Extra Grande</option>
-                                </select>
-                             </div>
-                          </div>
-                          <div className="flex gap-4">
-                             <label className="flex items-center gap-2 text-[10px] font-black text-gray-600 cursor-pointer uppercase">
-                                <input type="checkbox" checked={configForm.socialProject?.transparentBg} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, transparentBg: e.target.checked}})} className="w-4 h-4 rounded border-gray-300 text-red-500" />
-                                Fundo Transp.
-                             </label>
-                             <div className="flex items-center gap-2">
-                                <label className="text-[10px] font-black text-gray-600 uppercase">Cor Cabeçalho</label>
-                                <input type="color" value={configForm.socialProject?.headerColor || '#ef4444'} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, headerColor: e.target.value}})} className="w-6 h-6 border-0 p-0 bg-transparent cursor-pointer" />
-                             </div>
-                          </div>
-                       </div>
-                       <div className="space-y-4">
-                          <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Nome do Projeto</label><input type="text" value={configForm.socialProject?.name} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, name: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" /></div>
-                          <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Instagram (sem @)</label><input type="text" value={configForm.socialProject?.instagram} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, instagram: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" /></div>
-                       </div>
-                    </div>
-
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Chave Pix (E-mail)</label><input type="text" value={configForm.socialProject?.pixKey} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, pixKey: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" /></div>
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-1">Descrição do Projeto</label><textarea rows={3} value={configForm.socialProject?.description} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, description: e.target.value}})} className="w-full p-3 bg-gray-50 border rounded-xl font-medium text-sm outline-none resize-none" /></div>
-                 </div>
-              </div>
-
-              <div className="bg-white rounded-[2rem] p-8 border border-blue-50 shadow-sm max-w-2xl">
-                 <h3 className="text-xl font-black text-blue-600 uppercase tracking-tight mb-8 flex items-center gap-2"><Megaphone size={24}/> Campanha Banner (Home)</h3>
-                 <div className="space-y-6">
-                    <label className="flex items-center gap-2 font-black text-gray-700 uppercase text-xs mb-4"><input type="checkbox" checked={configForm.campaign?.active} onChange={e => setConfigForm({...configForm, campaign: {...configForm.campaign!, active: e.target.checked}})} className="w-5 h-5 rounded border-gray-300 text-blue-500" /> EXIBIR BANNER NA HOME</label>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <div className="flex flex-col gap-2">
-                          <label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Imagem da Campanha</label>
-                          <div className="w-full h-32 bg-gray-100 rounded-2xl overflow-hidden border flex items-center justify-center">
-                             {configForm.campaign?.imageUrl ? <img src={configForm.campaign.imageUrl} className="w-full h-full object-cover" /> : <ImageIcon size={40} className="text-gray-300"/>}
-                          </div>
-                          <label className="cursor-pointer bg-blue-50 text-blue-600 text-[10px] font-black uppercase text-center py-3 rounded-xl hover:bg-blue-100 mt-2">
-                             Selecionar Imagem
-                             <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'campaign')} />
-                          </label>
-                       </div>
-                       <div className="space-y-4">
-                          <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Título do Banner</label><input type="text" value={configForm.campaign?.title} onChange={e => setConfigForm({...configForm, campaign: {...configForm.campaign!, title: e.target.value}})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold outline-none" /></div>
-                          <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Texto Informativo Breve</label><input type="text" value={configForm.campaign?.description} onChange={e => setConfigForm({...configForm, campaign: {...configForm.campaign!, description: e.target.value}})} className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-xs font-medium outline-none" /></div>
-                       </div>
-                    </div>
-                    <div><label className="block text-[10px] font-black text-gray-400 uppercase mb-2">Link de Destino ou URL da Imagem Externa</label><input type="text" value={configForm.campaign?.imageUrl} onChange={e => setConfigForm({...configForm, campaign: {...configForm.campaign!, imageUrl: e.target.value}})} placeholder="https://..." className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-mono text-[10px] outline-none" /></div>
-                 </div>
-              </div>
-           </div>
-        )}
-
-        {/* TOOLS TAB */}
-        {activeTab === 'tools' && (
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in">
-              <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm space-y-6">
-                 <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight flex items-center gap-2"><Database size={24} className="text-primary"/> Backup e Restauração</h3>
-                 <div className="space-y-4">
-                    <p className="text-xs text-gray-500 leading-relaxed">Baixe uma cópia completa de todos os usuários e configurações do aplicativo em formato JSON para segurança.</p>
-                    <button onClick={handleBackupDB} className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] transition-all">
-                       <Download size={18} /> Exportar Banco de Dados
-                    </button>
-                    <div className="relative pt-4">
-                       <p className="text-[10px] font-black text-red-500 uppercase mb-2">Restaurar Banco de Dados</p>
-                       <label className="w-full cursor-pointer bg-red-50 text-red-600 font-black py-4 rounded-2xl border-2 border-dashed border-red-200 flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
-                          <Upload size={18} /> Selecionar Arquivo JSON
-                          <input type="file" className="hidden" accept=".json" onChange={handleRestoreDB} />
-                       </label>
-                    </div>
-                 </div>
-              </div>
-
-              <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm space-y-6">
-                 <h3 className="text-xl font-black text-gray-800 uppercase tracking-tight flex items-center gap-2"><FileText size={24} className="text-blue-500"/> Reconstrução e APK</h3>
-                 <div className="space-y-4">
-                    <p className="text-xs text-gray-500 leading-relaxed">Exporte o "Prompt" completo para recriar o aplicativo identicamente em qualquer ambiente de desenvolvimento ou IA.</p>
-                    <button onClick={handleExportPrompt} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] transition-all">
-                       <FileText size={18} /> Baixar Prompt do Sistema
-                    </button>
-                    <div className="pt-6 border-t mt-4">
-                       <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Link do APK Android (Download na Home)</p>
-                       <input type="text" value={configForm.apkUrl || ''} onChange={e => setConfigForm({...configForm, apkUrl: e.target.value})} placeholder="https://link-direto-do-arquivo.apk" className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl font-mono text-[10px] outline-none" />
-                    </div>
-                 </div>
-              </div>
-           </div>
-        )}
-
-        {/* USERS TAB */}
-        {activeTab === 'users' && (
-          <div className="space-y-6 animate-in fade-in">
-            <div className="flex gap-2 p-1 bg-gray-100 rounded-2xl w-fit">
-              {['all', 'pro', 'business', 'client'].map(f => (
-                <button key={f} onClick={() => setUserFilter(f as any)} className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${userFilter === f ? 'bg-white text-primary shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
-                  {f === 'all' ? 'Todos' : f === 'pro' ? 'Prestadores' : f === 'business' ? 'Lojas' : 'Clientes'}
-                </button>
-              ))}
-            </div>
-            <div className="bg-white rounded-[2rem] border overflow-hidden shadow-sm">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 border-b text-[10px] font-black uppercase text-gray-400 tracking-widest">
-                  <tr><th className="p-5">Nome / Email</th><th className="p-5">Papel</th><th className="p-5">Destaque</th><th className="p-5 text-right">Ações</th></tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filteredUsers.map(user => {
-                    const isVIP = user.highlightExpiresAt ? new Date(user.highlightExpiresAt) > new Date() : false;
-                    return (
-                      <tr key={user.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="p-5"><div><p className="font-bold text-gray-800">{user.name}</p><p className="text-[10px] text-gray-400">{user.email}</p></div></td>
-                        <td className="p-5 text-xs font-bold uppercase text-gray-500">{user.role}</td>
-                        <td className="p-5">
-                            {user.role !== 'client' && (
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black ${isVIP ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-400'}`}>
-                                    {isVIP ? 'VIP ATIVO' : 'NORMAL'}
-                                </span>
-                            )}
-                        </td>
-                        <td className="p-5 text-right flex justify-end gap-2">
-                           <button onClick={() => setEditingUser(user)} className="p-2 hover:bg-blue-50 text-gray-400 hover:text-primary rounded-xl transition-all"><Edit size={16}/></button>
-                           <button onClick={() => { if(confirm('Excluir?')) onDeleteUser(user.id); }} className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-all"><Trash2 size={16}/></button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* Mobile menu trigger button fix */}
-        <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 z-20">
-          <span className="font-bold text-lg text-primary">Admin Panel</span>
-          <button onClick={() => {}} className="p-2 text-gray-600"><Menu /></button>
-        </div>
-
       </main>
     </div>
   );
