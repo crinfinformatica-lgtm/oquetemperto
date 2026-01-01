@@ -1,11 +1,14 @@
+
 {
   "rules": {
-    ".read": false,
-    ".write": false,
+    ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master' || auth.token.email === 'crinf.app@gmail.com')",
+    ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'master' || auth.token.email === 'crinf.app@gmail.com')",
+    
     "config": {
       ".read": true,
       ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master' || auth.token.email === 'crinf.app@gmail.com')"
     },
+    
     "users": {
       ".read": true,
       ".indexOn": [
@@ -15,21 +18,13 @@
       ],
       "$uid": {
         ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master' || auth.token.email === 'crinf.app@gmail.com')",
-        ".validate": "newData.hasChildren(['name', 'role']) && (
-          (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master' || auth.token.email === 'crinf.app@gmail.com') || 
-          (
-            (!data.exists() && newData.child('role').val() != 'admin' && newData.child('role').val() != 'master' && newData.child('status').val() === 'active') ||
-            (data.exists() && newData.child('role').val() === data.child('role').val() && newData.child('status').val() === data.child('status').val())
-          )
-        )"
+        ".validate": "newData.hasChildren(['name', 'role'])"
       }
     },
+    
     "admin_notifications": {
       ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master' || auth.token.email === 'crinf.app@gmail.com')",
-      ".write": "auth != null",
-      "$notif_id": {
-        ".validate": "newData.hasChildren(['type', 'message', 'timestamp'])"
-      }
+      ".write": "auth != null"
     }
   }
 }

@@ -8,7 +8,7 @@ import {
   Calendar, Phone, Info, Smartphone, ExternalLink, QrCode, Database,
   Bus, Download, Copy, Heart, Upload, FileText, Type, Image as ImageIcon, Maximize, Instagram, Facebook,
   MapPin, Menu, History, RotateCcw, ShieldCheck, DownloadCloud, UploadCloud, AlertTriangle, Code, Settings,
-  ToggleLeft, ToggleRight, Layout, CheckCircle2, Plus, PlusCircle, Link as LinkIcon, Search, MoreHorizontal, Clock
+  ToggleLeft, ToggleRight, Layout, CheckCircle2, Plus, PlusCircle, Link as LinkIcon, Search, MoreHorizontal, Clock, Terminal
 } from 'lucide-react';
 import { db, hasValidConfig } from '../services/firebase';
 import { ref, onValue, set, get, update } from 'firebase/database';
@@ -199,7 +199,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
     alert("Copiado com sucesso!");
   };
 
-  // --- FUNÇÕES DE BACKUP ---
+  // --- FUNÇÕES DE BACKUP E PROMPTS ---
   const handleExportConfigOnly = () => {
     const backupPackage = { app_name: configForm.appName, timestamp: new Date().toISOString(), type: "config-only", config: configForm };
     const blob = new Blob([JSON.stringify(backupPackage, null, 2)], { type: 'application/json' });
@@ -208,6 +208,69 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
     const a = document.createElement('a');
     a.href = url; a.download = filename; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleDownloadPrompt = (type: 'system' | 'admin') => {
+    const timestamp = new Date().toLocaleString('pt-BR');
+    const systemPrompt = `PROMPT DE RECONSTRUÇÃO TOTAL: ${configForm.appName.toUpperCase()}
+Data de Geração: ${timestamp}
+
+Objetivo: Recriar identicamente o aplicativo "${configForm.appName}" (Águas Claras e Região).
+
+Estrutura Técnica:
+- Framework: React 18+ com TypeScript
+- Estilização: Tailwind CSS (Mobile First)
+- Backend: Firebase (Auth e Realtime Database)
+- IA: Google Gemini API para categorização de buscas
+
+Funcionalidades Principais:
+1. Guia de Prestadores e Comércios com filtros por bairro e categoria.
+2. Sistema de busca inteligente via IA.
+3. Cadastro multinível (Cliente, Prestador, Comércio).
+4. Página de Utilidade Pública (Emergência, Saúde, Ônibus).
+5. Seção de Doação/Social personalizável.
+6. Painel Administrativo para controle de usuários e destaques.
+
+Identidade Atual:
+- Cor Primária: ${configForm.primaryColor}
+- Cor de Destaque: ${configForm.accentColor}
+- Chave Pix Social: ${configForm.socialProject?.pixKey}
+
+Configuração JSON do Sistema:
+${JSON.stringify(configForm, null, 2)}
+
+Instrução de Desenvolvimento:
+Use as configurações acima para gerar os arquivos App.tsx e componentes baseados no design de cartões arredondados (2.5rem), sombras suaves e tipografia Inter.`;
+
+    const adminPrompt = `PROMPT DE RECONSTRUÇÃO DO PAINEL ADMINISTRATIVO
+Data de Geração: ${timestamp}
+
+Objetivo: Recriar o Painel Administrativo de Controle Total do Sistema.
+
+Requisitos de UI/UX:
+- Layout: Dashboard com Sidebar fixa (Gray-900).
+- Estética: Botões com cantos ultra-arredondados (3xl), sombras XL, animações fade-in.
+- Abas Obrigatórias: Geral, Usuários (Gerenciar Destaques de 2/7/15/30 dias), Utilidades, Identidade, Divulgação, Campanhas e Resiliência.
+
+Funcionalidades de Gestão:
+1. Controle de Status (Ativo/Banido).
+2. Edição de dados cadastrais via modal.
+3. Gerenciamento de destaque temporal (Destaque Pro/Business).
+4. Editor de Utilidades com reordenação (Up/Down).
+5. Backup/Snapshot total via JSON.
+6. Editor de Identidade Visual (Cores e Logos em tempo real).
+
+JSON de Referência de Configuração:
+${JSON.stringify(configForm, null, 2)}`;
+
+    const content = type === 'system' ? systemPrompt : adminPrompt;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `PROMPT_${type === 'system' ? 'SISTEMA_COMPLETO' : 'PAINEL_ADMIN'}_${configForm.appName.replace(/\s+/g, '_').toUpperCase()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleRestoreConfigOnly = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -926,6 +989,57 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                        <span className="text-red-600 font-bold text-xs uppercase">Restauração de Emergência</span>
                        <input type="file" className="hidden" accept=".json" onChange={handleRestoreFromSnapshot} />
                     </label>
+                 </div>
+              </div>
+
+              {/* NOVAS SEÇÕES DE RECONSTRUÇÃO */}
+              <div className="bg-white rounded-[2.5rem] border border-emerald-100 shadow-xl overflow-hidden">
+                 <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-8 text-white flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Code size={32} /></div>
+                    <div>
+                       <h2 className="text-2xl font-black uppercase tracking-tight">Reconstrução e APK</h2>
+                       <p className="text-emerald-100 text-sm font-medium">Exporte o "Prompt" completo para recriar o aplicativo identicamente.</p>
+                    </div>
+                 </div>
+                 <div className="p-8">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
+                       <div className="flex-1">
+                          <p className="text-sm text-emerald-800 leading-relaxed">
+                             Este prompt contém todas as regras de negócio, estrutura de pastas, tecnologias e variáveis necessárias para recriar o app do zero em qualquer IA de codificação.
+                          </p>
+                       </div>
+                       <button 
+                         onClick={() => handleDownloadPrompt('system')}
+                         className="bg-emerald-600 text-white font-black py-4 px-8 rounded-2xl shadow-lg flex items-center justify-center gap-3 hover:bg-emerald-700 active:scale-95 transition-all w-full md:w-auto whitespace-nowrap"
+                       >
+                          <FileText size={20} /> Baixar Prompt do Sistema
+                       </button>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="bg-white rounded-[2.5rem] border border-indigo-100 shadow-xl overflow-hidden">
+                 <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-8 text-white flex items-center gap-4">
+                    <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Terminal size={32} /></div>
+                    <div>
+                       <h2 className="text-2xl font-black uppercase tracking-tight">Reconstrução do Painel Administrativo</h2>
+                       <p className="text-indigo-100 text-sm font-medium">Exporte o "Prompt" completo para recriar o painel administrativo.</p>
+                    </div>
+                 </div>
+                 <div className="p-8">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
+                       <div className="flex-1">
+                          <p className="text-sm text-indigo-800 leading-relaxed">
+                             Prompt técnico detalhando as abas de gestão, lógica de destaques, backups, regras de segurança do Firebase e fluxos de administração.
+                          </p>
+                       </div>
+                       <button 
+                         onClick={() => handleDownloadPrompt('admin')}
+                         className="bg-indigo-600 text-white font-black py-4 px-8 rounded-2xl shadow-lg flex items-center justify-center gap-3 hover:bg-indigo-700 active:scale-95 transition-all w-full md:w-auto whitespace-nowrap"
+                       >
+                          <FileText size={20} /> Baixar Prompt do Painel Administrativo
+                       </button>
+                    </div>
                  </div>
               </div>
            </div>
