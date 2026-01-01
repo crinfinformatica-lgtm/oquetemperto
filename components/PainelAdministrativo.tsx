@@ -99,13 +99,13 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
 
   const getRemainingDays = (dateStr: string) => {
     const remaining = new Date(dateStr).getTime() - new Date().getTime();
-    return Math.ceil(remaining / (1000 * 60 * 60 * 24));
+    return Math.max(0, Math.ceil(remaining / (1000 * 60 * 60 * 24)));
   };
 
   // --- FUNÇÕES DE UTILIDADES ---
   const handleAddUtilityItem = (categoryId: string) => {
-    const newItems = [...(configForm.utilityCategories || [])];
-    const categoryIndex = newItems.findIndex(c => c.id === categoryId);
+    const newCats = [...(configForm.utilityCategories || [])];
+    const categoryIndex = newCats.findIndex(c => c.id === categoryId);
     if (categoryIndex > -1) {
       const newItem: UtilityItem = {
         id: `it-${Date.now()}`,
@@ -113,28 +113,28 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
         number: '',
         description: ''
       };
-      newItems[categoryIndex].items.push(newItem);
-      setConfigForm({ ...configForm, utilityCategories: newItems });
+      newCats[categoryIndex].items = [...newCats[categoryIndex].items, newItem];
+      setConfigForm({ ...configForm, utilityCategories: newCats });
     }
   };
 
   const handleRemoveUtilityItem = (categoryId: string, itemId: string) => {
-    const newItems = [...(configForm.utilityCategories || [])];
-    const categoryIndex = newItems.findIndex(c => c.id === categoryId);
+    const newCats = [...(configForm.utilityCategories || [])];
+    const categoryIndex = newCats.findIndex(c => c.id === categoryId);
     if (categoryIndex > -1) {
-      newItems[categoryIndex].items = newItems[categoryIndex].items.filter(i => i.id !== itemId);
-      setConfigForm({ ...configForm, utilityCategories: newItems });
+      newCats[categoryIndex].items = newCats[categoryIndex].items.filter(i => i.id !== itemId);
+      setConfigForm({ ...configForm, utilityCategories: newCats });
     }
   };
 
   const handleUpdateUtilityItem = (categoryId: string, itemId: string, field: keyof UtilityItem, value: string) => {
-    const newItems = [...(configForm.utilityCategories || [])];
-    const categoryIndex = newItems.findIndex(c => c.id === categoryId);
+    const newCats = [...(configForm.utilityCategories || [])];
+    const categoryIndex = newCats.findIndex(c => c.id === categoryId);
     if (categoryIndex > -1) {
-      const itemIndex = newItems[categoryIndex].items.findIndex(i => i.id === itemId);
+      const itemIndex = newCats[categoryIndex].items.findIndex(i => i.id === itemId);
       if (itemIndex > -1) {
-        newItems[categoryIndex].items[itemIndex] = { ...newItems[categoryIndex].items[itemIndex], [field]: value };
-        setConfigForm({ ...configForm, utilityCategories: newItems });
+        newCats[categoryIndex].items[itemIndex] = { ...newCats[categoryIndex].items[itemIndex], [field]: value };
+        setConfigForm({ ...configForm, utilityCategories: newCats });
       }
     }
   };
@@ -510,6 +510,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                 <p className="text-xs font-bold text-blue-800 uppercase">Gerencie aqui os números de emergência, utilidades públicas e horários de ônibus do app.</p>
               </div>
 
+              {/* Categorias de Utilidades */}
               {configForm.utilityCategories?.map((cat, catIndex) => (
                 <div key={cat.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden">
                    <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
@@ -555,6 +556,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                 </div>
               ))}
 
+              {/* Horários de Ônibus */}
               <div className="bg-white rounded-[2rem] border border-orange-100 shadow-xl overflow-hidden">
                 <div className="p-6 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
                     <h3 className="text-lg font-black text-orange-800 uppercase tracking-tight flex items-center gap-2">
@@ -771,6 +773,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
 
         {activeTab === 'campaign' && (
           <div className="space-y-10 animate-in fade-in duration-500">
+            {/* PROJETO SOCIAL (DOAÇÃO) */}
             <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
                <div className="bg-gradient-to-r from-red-600 to-rose-600 p-8 text-white flex justify-between items-center">
                   <div className="flex items-center gap-4">
@@ -828,7 +831,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                              <label className="block text-[10px] font-black text-gray-400 uppercase">Chave Pix (E-mail)</label>
                              <div className="relative">
                                 <QrCode size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input type="text" value={configForm.socialProject?.pixKey || ''} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, pixKey: e.target.value})} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary font-mono text-sm" placeholder="gracachurchcl@gmail.com" />
+                                <input type="text" value={configForm.socialProject?.pixKey || ''} onChange={e => setConfigForm({...configForm, socialProject: {...configForm.socialProject!, pixKey: e.target.value}})} className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-primary font-mono text-sm" placeholder="gracachurchcl@gmail.com" />
                              </div>
                           </div>
                        </div>
@@ -840,6 +843,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                   </div>
                </div>
             </div>
+            {/* CAMPANHA BANNER (HOME) */}
             <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white flex justify-between items-center">
                   <div className="flex items-center gap-4">
@@ -849,7 +853,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                        <p className="text-blue-100 text-sm font-medium">Banner principal de destaque no topo da página inicial.</p>
                     </div>
                   </div>
-                  <button onClick={() => setConfigForm({...configForm, campaign: {...configForm.campaign!, active: !configForm.campaign?.active}})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${configForm.campaign?.active ? 'bg-white text-blue-600 shadow-lg' : 'bg-blue-800/50 text-blue-200'}`}>
+                  <button onClick={() => setConfigForm({...configForm, campaign: {...configForm.campaign!, active: !configForm.campaign?.active}})} className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${configForm.campaign?.active ? 'bg-white text-blue-600 shadow-lg' : 'bg-blue-800/50 text-red-200'}`}>
                     {configForm.campaign?.active ? <ToggleRight /> : <ToggleLeft />} {configForm.campaign?.active ? 'EXIBIR BANNER NA HOME' : 'BANNER OCULTO'}
                   </button>
                </div>
