@@ -46,11 +46,11 @@ const INITIAL_CONFIG: AppConfig = {
   showUserCounter: true,
   utilityOrder: ['emergencia', 'utilidade', 'saude', 'bus', 'social', 'prefeitura'],
   busLines: [
-    { id: 'b1', name: 'Águas Claras', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' },
-    { id: 'b2', name: 'Francisco Gorski', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' },
-    { id: 'b3', name: 'Moradias Bom Jesus', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' },
-    { id: 'b4', name: 'Três Rios', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' },
-    { id: 'b5', name: 'Consultar outras linhas', url: 'https://www.campolargo.pr.gov.br/servicos/transporte-coletivo' }
+    { id: 'b1', name: 'Águas Claras', url: 'https://transpiedade.com.br/linhas/5/aguas-claras/' },
+    { id: 'b2', name: 'Francisco Gorski', url: 'https://www.transpiedade.com.br/linhas/16/francisco-gorski/' },
+    { id: 'b3', name: 'Moradias Bom Jesus', url: 'https://transpiedade.com.br/linhas/4/moradias-bom-jesus/#dias-uteis' },
+    { id: 'b4', name: 'Três Rios', url: 'https://transpiedade.com.br/linhas/9/campina/#dias-uteis' },
+    { id: 'b5', name: 'Consultar outras linhas', url: 'https://transpiedade.com.br/' }
   ],
   utilityCategories: [
     {
@@ -62,7 +62,7 @@ const INITIAL_CONFIG: AppConfig = {
         { id: 'e3', name: 'Polícia Militar', number: '190', description: 'Ocorrências' },
         { id: 'e4', name: 'Guarda Municipal', number: '153', description: 'Segurança Local' },
         { id: 'e5', name: 'Delegacia Civil', number: '(41) 3291-6100', description: 'Plantão Policial' },
-        { id: 'e6', name: 'Defesa Civil', number: '199', description: 'Desastres e Alagamentos' }
+        { id: 'e6', name: 'Defesa Civil', number: '(41) 99833-8888', description: 'Desastres e Alagamentos' }
       ]
     },
     {
@@ -271,7 +271,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Lógica para contar total de usuários reais
   useEffect(() => {
     if (!hasValidConfig || !db || Object.keys(db).length === 0) return;
     const usersRef = ref(db, 'users');
@@ -305,13 +304,11 @@ export default function App() {
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        alert("Localização obtida com sucesso! A busca priorizará o que estiver mais próximo de você.");
+        alert("Localização obtida com sucesso!");
         setIsLocating(false);
       },
       (error) => {
-        const errorMessage = error.message || "Erro desconhecido ao acessar GPS.";
-        console.error("Geo error:", errorMessage);
-        alert(`Não foi possível obter sua localização: ${errorMessage}. Verifique as permissões do seu navegador ou celular.`);
+        alert(`Erro GPS: ${error.message}`);
         setIsLocating(false);
       },
       { timeout: 10000, enableHighAccuracy: true }
@@ -458,14 +455,14 @@ export default function App() {
   const handleShare = () => {
     const shareData = {
       title: appConfig.appName,
-      text: 'Encontre profissionais e comércios em Águas Claras e região!',
+      text: `Encontre tudo o que precisa no App ${appConfig.appName}!`,
       url: appConfig.shareUrl || window.location.href,
     };
     if (navigator.share) {
-      navigator.share(shareData).catch(err => console.error('Erro ao compartilhar:', err));
+      navigator.share(shareData).catch(err => console.error('Erro share:', err));
     } else {
       navigator.clipboard.writeText(shareData.url);
-      alert('Link copiado para a área de transferência!');
+      alert('✅ Link de compartilhamento copiado!');
     }
   };
 
@@ -500,34 +497,6 @@ export default function App() {
                 )}
              </div>
 
-             {appConfig.campaign?.active && (
-                <div className="w-full max-w-2xl bg-gradient-to-br from-purple-600 to-primary rounded-[2.5rem] shadow-2xl overflow-hidden mb-10 text-white relative group animate-in slide-in-from-top-4 duration-500">
-                   <div className="flex flex-col md:flex-row h-full">
-                      {appConfig.campaign.imageUrl && (
-                         <div className="md:w-1/3 h-48 md:h-auto overflow-hidden relative">
-                            <img src={appConfig.campaign.imageUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20 md:hidden"></div>
-                         </div>
-                      )}
-                      <div className="flex-1 p-8 flex flex-col justify-center">
-                         <div className="flex items-center gap-2 mb-3">
-                            <Megaphone size={16} className="text-purple-200 animate-bounce" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-100">Campanha em Destaque</span>
-                         </div>
-                         <h3 className="text-2xl font-black mb-3 leading-tight">{appConfig.campaign.title}</h3>
-                         <p className="text-sm text-purple-50/80 mb-6 line-clamp-3 leading-relaxed">{appConfig.campaign.description}</p>
-                         
-                         {appConfig.campaign.link && (
-                            <a href={appConfig.campaign.link} target="_blank" className="inline-flex items-center gap-2 bg-white text-primary font-black px-6 py-3 rounded-2xl shadow-lg transition-all hover:scale-105 active:scale-95 text-xs w-fit">
-                               {appConfig.campaign.label || 'Ver Mais'}
-                               <ExternalLink size={14} />
-                            </a>
-                         )}
-                      </div>
-                   </div>
-                </div>
-             )}
-
              <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 md:p-6 mb-4">
                 <div className="flex gap-2 p-1 bg-gray-50 dark:bg-gray-900 rounded-2xl mb-6">
                    <button onClick={() => setSearchTab('pro')} className={`flex-1 py-3 px-4 rounded-xl font-bold transition-all ${searchTab === 'pro' ? 'bg-white dark:bg-gray-700 text-blue-600 shadow-md' : 'text-gray-400'}`}>Serviços</button>
@@ -552,7 +521,6 @@ export default function App() {
                         onClick={handleManualLocation}
                         disabled={isLocating}
                         className={`p-4 rounded-2xl border border-gray-100 dark:border-gray-700 flex items-center justify-center transition-all ${isLocating ? 'text-primary bg-primary/10' : 'text-gray-400 bg-gray-50 dark:bg-gray-900 hover:text-primary shadow-sm active:scale-95'}`}
-                        title="Usar minha localização atual (Ligar GPS)"
                       >
                          {isLocating ? <Loader2 className="animate-spin" size={20} /> : <Navigation size={20} />}
                       </button>
@@ -563,27 +531,11 @@ export default function App() {
                      Buscar Agora
                    </button>
                 </form>
-
-                <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                   <button onClick={handleInstall} className="w-full bg-blue-50 text-blue-700 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-blue-100 transition-all active:scale-95 shadow-sm">
-                      <Smartphone size={20} /> Instalar no Celular
-                   </button>
-                   {appConfig.apkUrl && (
-                      <button onClick={handleDownloadApk} className="w-full bg-green-50 text-green-700 py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:bg-green-100 transition-all active:scale-95 shadow-sm">
-                        <Download size={20} /> Baixar APK Android
-                      </button>
-                   )}
-                </div>
              </div>
 
-             {/* Badge de Total de Usuários / Prova Social */}
              {appConfig.showUserCounter && totalUsersCount > 0 && (
                 <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-5 py-2 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm animate-in fade-in zoom-in duration-500 mb-8">
-                   <div className="flex -space-x-2">
-                      <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center border-2 border-white dark:border-gray-800"><UsersIcon size={10} className="text-blue-600" /></div>
-                      <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center border-2 border-white dark:border-gray-800"><UsersIcon size={10} className="text-green-600" /></div>
-                      <div className="w-6 h-6 rounded-full bg-yellow-100 flex items-center justify-center border-2 border-white dark:border-gray-800"><UsersIcon size={10} className="text-yellow-600" /></div>
-                   </div>
+                   <UsersIcon size={14} className="text-primary" />
                    <p className="text-[10px] md:text-xs font-bold text-gray-600 dark:text-gray-300">
                       Junte-se a <span className="text-primary font-black">+{totalUsersCount} pessoas</span> na nossa comunidade!
                    </p>
@@ -595,14 +547,7 @@ export default function App() {
         )}
 
         {view === 'login' && <LoginForm onBack={() => setView('home')} onLogin={handleStandardLogin} onRegisterClick={() => setView('register-selection')} onAdminClick={() => setView('admin-login')} onGuestClick={() => setView('home')} />}
-        
-        {/* NOVAS ROTAS DE CADASTRO */}
-        {view === 'register-selection' && (
-          <RegisterSelection 
-            onSelect={(type) => setView(`register-${type}` as AppView)} 
-            onBack={() => setView('home')} 
-          />
-        )}
+        {view === 'register-selection' && <RegisterSelection onSelect={(type) => setView(`register-${type}` as AppView)} onBack={() => setView('home')} />}
         {view === 'register-client' && <RegisterForm appName={appConfig.appName} type="client" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
         {view === 'register-pro' && <RegisterForm appName={appConfig.appName} type="pro" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
         {view === 'register-business' && <RegisterForm appName={appConfig.appName} type="business" onBack={() => setView('register-selection')} onRegisterSuccess={() => setView('home')} />}
@@ -611,7 +556,6 @@ export default function App() {
         {view === 'details' && selectedProfessional && <ProfessionalDetails professional={selectedProfessional} currentUser={currentUser} onBack={() => setView('results')} onAddReview={handleAddReview} onToggleFavorite={handleToggleFavorite} />}
         {view === 'user-profile' && currentUser && <UserProfile user={currentUser} onUpdate={(u) => update(ref(db, `users/${u.id}`), u)} onLogout={handleLogout} onBack={() => setView('home')} onOpenAdmin={() => setView('admin-panel')} />}
         {view === 'donation' && <DonationView config={appConfig} onBack={() => setView('home')} />}
-        {view === 'admin-login' && <LoginForm onBack={() => setView('home')} onLogin={handleStandardLogin} onRegisterClick={() => {}} onAdminClick={() => {}} onGuestClick={() => {}} />}
         {view === 'admin-panel' && currentUser && (
           <PainelAdministrativo 
             currentUser={currentUser} 

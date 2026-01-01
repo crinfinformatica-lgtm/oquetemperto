@@ -286,8 +286,8 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                          userFilter === 'business' ? u.role === 'business' :
                          userFilter === 'client' ? u.role === 'client' : true;
     
-    const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (u.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (u.email || '').toLowerCase().includes(searchQuery.toLowerCase());
     
     return matchesFilter && matchesSearch;
   });
@@ -381,7 +381,6 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
 
         {activeTab === 'users' && (
            <div className="space-y-8 animate-in fade-in duration-500">
-              {/* Filtros e Busca */}
               <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                  <div className="flex bg-gray-50 p-1 rounded-2xl w-full md:w-auto">
                     {[
@@ -411,7 +410,6 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                  </div>
               </div>
 
-              {/* Tabela de Usuários */}
               <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-xl overflow-hidden">
                  <div className="overflow-x-auto">
                     <table className="w-full text-left">
@@ -512,7 +510,6 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                 <p className="text-xs font-bold text-blue-800 uppercase">Gerencie aqui os números de emergência, utilidades públicas e horários de ônibus do app.</p>
               </div>
 
-              {/* Categorias de Utilidades */}
               {configForm.utilityCategories?.map((cat, catIndex) => (
                 <div key={cat.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden">
                    <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
@@ -558,7 +555,6 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                 </div>
               ))}
 
-              {/* Horários de Ônibus */}
               <div className="bg-white rounded-[2rem] border border-orange-100 shadow-xl overflow-hidden">
                 <div className="p-6 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
                     <h3 className="text-lg font-black text-orange-800 uppercase tracking-tight flex items-center gap-2">
