@@ -1,24 +1,24 @@
 
 {
   "rules": {
-    ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master' || auth.token.email === 'crinf.app@gmail.com' || auth.token.email === 'crinf.negocios@gmail.com')",
-    ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'master' || auth.token.email === 'crinf.app@gmail.com' || auth.token.email === 'crinf.negocios@gmail.com')",
+    ".read": "auth != null && (auth.token.email === 'crinf.app@gmail.com' || auth.token.email === 'crinf.negocios@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')",
+    ".write": "auth != null && (auth.token.email === 'crinf.app@gmail.com' || auth.token.email === 'crinf.negocios@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'master')",
     
     "config": {
       ".read": true,
-      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')"
+      ".write": "auth != null && (auth.token.email === 'crinf.app@gmail.com' || auth.token.email === 'crinf.negocios@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')"
     },
     
     "users": {
       ".read": true,
       ".indexOn": ["role", "neighborhood", "category"],
       "$uid": {
-        ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')"
+        ".write": "auth != null && ($uid === auth.uid || auth.token.email === 'crinf.app@gmail.com' || auth.token.email === 'crinf.negocios@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')"
       }
     },
     
     "admin_notifications": {
-      ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')",
+      ".read": "auth != null && (auth.token.email === 'crinf.app@gmail.com' || auth.token.email === 'crinf.negocios@gmail.com' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'master')",
       ".write": "auth != null"
     }
   }

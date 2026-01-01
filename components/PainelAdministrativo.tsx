@@ -215,43 +215,40 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
     const systemPrompt = `PROMPT DE RECONSTRUÇÃO TOTAL: ${configForm.appName.toUpperCase()}
 Data de Geração: ${timestamp}
 
-Objetivo: Recriar identicamente o aplicativo "${configForm.appName}" (Águas Claras e Região).
+Objetivo: Recriar identicamente o aplicativo de busca local "${configForm.appName}".
 
-Estrutura Técnica Exigida:
-- Framework: React 18+ com TypeScript e Vite.
-- Estilização: Tailwind CSS (Configuração Mobile First).
-- Ícones: Lucide React.
-- IA: Google Gemini API (@google/genai) para classificação de categorias e buscas.
-- Backend: Firebase (Auth para login e Realtime Database para persistência).
+Pilha Tecnológica:
+- Frontend: React 18, TypeScript, Vite.
+- UI/UX: Tailwind CSS com design de cartões arredondados (2.5rem).
+- Backend: Firebase Realtime Database e Firebase Auth.
+- Inteligência: Google Gemini API (@google/genai) para busca categórica.
 
-Componentes e Fluxos:
-1. Home com busca inteligente (IA mapeia termos para categorias).
-2. Cadastro multinível: Cliente, Prestador (Pro) e Comércio (Business).
-3. Página de Detalhes: Bio, Destaques, Avaliações por estrelas e contato direto via WhatsApp.
-4. Central de Utilidade Pública: Números de emergência, hospitais locais e horários de ônibus (links externos).
-5. Sistema de Destaques: Ordenação prioritária baseada no campo 'isHighlighted' (Destaques no topo).
+Arquitetura e Fluxos:
+1. Tela Inicial com Tabs (Serviços/Comércio) e Busca via IA.
+2. Sistema de Cadastro Multinível (Cliente, Prestador, Loja) com upload de fotos (Base64).
+3. Guia de Utilidade Pública (Emergência, Saúde, Ônibus) ordenável.
+4. Perfil de Usuário com gestão de dados, favoritos e exclusão de conta.
+5. Filtro de Bairros restrito a Campo Largo/PR conforme lista técnica.
 
-Configuração Atual em JSON:
-${JSON.stringify(configForm, null, 2)}
-
-Instrução Final:
-Gere o código completo do App.tsx e componentes secundários seguindo o design visual de cantos ultra-arredondados (2.5rem), sombras suaves e paleta de cores primária ${configForm.primaryColor}.`;
+Configuração JSON Atual:
+${JSON.stringify(configForm, null, 2)}`;
 
     const adminPrompt = `PROMPT DE RECONSTRUÇÃO DO PAINEL ADMINISTRATIVO (BACKOFFICE)
 Data de Geração: ${timestamp}
 
-Objetivo: Recriar o Painel de Controle Total para "${configForm.appName}".
+Objetivo: Recriar o sistema de gestão administrativa do app "${configForm.appName}".
 
-Layout e UI:
-- Sidebar fixa (Gray-900) com navegação por ícones (Geral, Usuários, Utilidades, Identidade, Marketing, Campanhas, Resiliência).
-- Tema: Design executivo com botões 2.5rem, sombras XL e animações fade-in.
+Design Requerido:
+- Layout Dashboard: Sidebar lateral fixa (Gray-900), Área de conteúdo com fundo Gray-50.
+- Componentes: Tabelas interativas, Modais de edição, Seletores de cores em tempo real.
 
-Lógicas de Negócio:
-1. Usuários: Tabela com filtros (Pro/Loja/Cliente) e gerenciamento de Destaque Temporal (2, 7, 15, 30 dias).
-2. Utilidades: Editor de categorias e itens (Siren, Zap, Heart) com reordenação via ArrowUp/Down.
-3. Identidade: Editor de cores (Primary/Accent) e upload de Logo via Base64.
-4. Resiliência: Implementação de exportação/importação de Snapshot JSON total do Firebase.
-5. Marketing: Gerador dinâmico de QR Code baseado na URL de compartilhamento.
+Módulos de Gestão:
+1. Dashboard Geral: Contadores por tipo de usuário.
+2. Usuários: Tabela de gestão com filtros de papel e status (Ativo/Banido).
+3. Sistema de Destaques: Botões rápidos para aplicar destaques de 2 a 30 dias com data de expiração.
+4. Editor de Utilidades: Ferramenta de reordenação (Up/Down) para categorias e números de emergência.
+5. Editor de Identidade Visual: Upload de logo e definição de variáveis hexadecimais para o tema.
+6. Resiliência: Ferramentas de Snapshot JSON total e recuperação de banco de dados.
 
 Referência JSON:
 ${JSON.stringify(configForm, null, 2)}`;
@@ -261,7 +258,7 @@ ${JSON.stringify(configForm, null, 2)}`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `PROMPT_${type === 'system' ? 'SISTEMA_TOTAL' : 'PAINEL_ADMIN'}_${configForm.appName.replace(/\s+/g, '_').toUpperCase()}.txt`;
+    a.download = `PROMPT_${type === 'system' ? 'RECONSTRUCAO_SISTEMA' : 'RECONSTRUCAO_PAINEL'}_${configForm.appName.replace(/\s+/g, '_').toUpperCase()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -293,7 +290,7 @@ ${JSON.stringify(configForm, null, 2)}`;
       const url = URL.createObjectURL(blob);
       const filename = `SNAPSHOT_TOTAL_${configForm.appName.replace(/\s+/g, '_').toUpperCase()}_${new Date().toISOString().split('T')[0]}.json`;
       const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
-    } catch (err) { alert("❌ Falha ao gerar Snapshot: " + err); } finally { setIsExporting(false); }
+    } catch (err) { alert("❌ Falha ao gerar Snapshot: Verifique se suas regras de segurança permitem leitura na raiz (/)."); } finally { setIsExporting(false); }
   };
 
   const handleRestoreFromSnapshot = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -611,6 +608,7 @@ ${JSON.stringify(configForm, null, 2)}`;
                 </div>
               ))}
 
+              {/* Horários de Ônibus */}
               <div className="bg-white rounded-[2rem] border border-orange-100 shadow-xl overflow-hidden">
                 <div className="p-6 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
                     <h3 className="text-lg font-black text-orange-800 uppercase tracking-tight flex items-center gap-2">
@@ -975,7 +973,10 @@ ${JSON.stringify(configForm, null, 2)}`;
                     </div>
                  </div>
                  <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <button onClick={handleGenerateTotalSnapshot} className="bg-primary text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 active:scale-95"><DownloadCloud size={20} /> EXPORTAR SNAPSHOT TOTAL</button>
+                    <button onClick={handleGenerateTotalSnapshot} disabled={isExporting} className="bg-primary text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50">
+                       {isExporting ? <RefreshCw className="animate-spin" /> : <DownloadCloud size={20} />} 
+                       EXPORTAR SNAPSHOT TOTAL
+                    </button>
                     <label className="cursor-pointer bg-red-50 border-2 border-dashed border-red-200 rounded-3xl p-5 flex flex-col items-center justify-center hover:bg-red-100">
                        <RotateCcw className="text-red-600 mb-1" />
                        <span className="text-red-600 font-bold text-xs uppercase">Restauração de Emergência</span>
@@ -984,52 +985,52 @@ ${JSON.stringify(configForm, null, 2)}`;
                  </div>
               </div>
 
-              {/* NOVAS SEÇÕES DE RECONSTRUÇÃO */}
+              {/* SEÇÕES DE RECONSTRUÇÃO E APK */}
               <div className="bg-white rounded-[2.5rem] border border-emerald-100 shadow-xl overflow-hidden">
                  <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-8 text-white flex items-center gap-4">
                     <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Code size={32} /></div>
                     <div>
                        <h2 className="text-2xl font-black uppercase tracking-tight">Reconstrução e APK</h2>
-                       <p className="text-emerald-100 text-sm font-medium">Exporte o "Prompt" completo para recriar o aplicativo identicamente.</p>
+                       <p className="text-emerald-100 text-sm font-medium">Exporte o "Prompt" completo para recriar o aplicativo identicamente em qualquer ambiente.</p>
                     </div>
                  </div>
                  <div className="p-8">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
+                    <div className="bg-emerald-50 rounded-3xl p-6 border border-emerald-100 flex flex-col md:flex-row items-center gap-6">
                        <div className="flex-1">
-                          <p className="text-sm text-emerald-800 leading-relaxed">
-                             Este prompt contém todas as regras de negócio, estrutura de pastas, tecnologias e variáveis necessárias para recriar o app do zero em qualquer IA de codificação.
+                          <p className="text-sm text-emerald-800 leading-relaxed font-medium">
+                             Baixe um arquivo de texto contendo todas as especificações técnicas, regras de negócio e a configuração atual para alimentar uma IA (como Gemini ou GPT) e gerar o código-fonte idêntico.
                           </p>
                        </div>
                        <button 
                          onClick={() => handleDownloadPrompt('system')}
-                         className="bg-emerald-600 text-white font-black py-4 px-8 rounded-2xl shadow-lg flex items-center justify-center gap-3 hover:bg-emerald-700 active:scale-95 transition-all w-full md:w-auto whitespace-nowrap"
+                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 px-8 rounded-2xl shadow-lg flex items-center gap-3 active:scale-95 transition-all whitespace-nowrap"
                        >
-                          <FileText size={20} /> Baixar Prompt do Sistema
+                          <Download size={20} /> Baixar Prompt do Sistema
                        </button>
                     </div>
                  </div>
               </div>
 
-              <div className="bg-white rounded-[2.5rem] border border-indigo-100 shadow-xl overflow-hidden">
-                 <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-8 text-white flex items-center gap-4">
+              <div className="bg-white rounded-[2.5rem] border border-blue-100 shadow-xl overflow-hidden">
+                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white flex items-center gap-4">
                     <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Terminal size={32} /></div>
                     <div>
                        <h2 className="text-2xl font-black uppercase tracking-tight">Reconstrução do Painel Administrativo</h2>
-                       <p className="text-indigo-100 text-sm font-medium">Exporte o "Prompt" completo para recriar o painel administrativo.</p>
+                       <p className="text-blue-100 text-sm font-medium">Exporte o "Prompt" completo para recriar o painel administrativo identicamente.</p>
                     </div>
                  </div>
                  <div className="p-8">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 bg-indigo-50 rounded-3xl border border-indigo-100">
+                    <div className="bg-blue-50 rounded-3xl p-6 border border-blue-100 flex flex-col md:flex-row items-center gap-6">
                        <div className="flex-1">
-                          <p className="text-sm text-indigo-800 leading-relaxed">
-                             Prompt técnico detalhando as abas de gestão, lógica de destaques, backups, regras de segurança do Firebase e fluxos de administração.
+                          <p className="text-sm text-blue-800 leading-relaxed font-medium">
+                             Prompt técnico focado no backoffice, incluindo lógica de gestão de usuários, aplicação de destaques temporais e ferramentas de resiliência.
                           </p>
                        </div>
                        <button 
                          onClick={() => handleDownloadPrompt('admin')}
-                         className="bg-indigo-600 text-white font-black py-4 px-8 rounded-2xl shadow-lg flex items-center justify-center gap-3 hover:bg-indigo-700 active:scale-95 transition-all w-full md:w-auto whitespace-nowrap"
+                         className="bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-8 rounded-2xl shadow-lg flex items-center gap-3 active:scale-95 transition-all whitespace-nowrap"
                        >
-                          <FileText size={20} /> Baixar Prompt do Painel Administrativo
+                          <Download size={20} /> Baixar Prompt do Painel Administrativo
                        </button>
                     </div>
                  </div>
