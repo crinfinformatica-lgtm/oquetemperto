@@ -217,50 +217,43 @@ Data de Geração: ${timestamp}
 
 Objetivo: Recriar identicamente o aplicativo "${configForm.appName}" (Águas Claras e Região).
 
-Estrutura Técnica:
-- Framework: React 18+ com TypeScript
-- Estilização: Tailwind CSS (Mobile First)
-- Backend: Firebase (Auth e Realtime Database)
-- IA: Google Gemini API para categorização de buscas
+Estrutura Técnica Exigida:
+- Framework: React 18+ com TypeScript e Vite.
+- Estilização: Tailwind CSS (Configuração Mobile First).
+- Ícones: Lucide React.
+- IA: Google Gemini API (@google/genai) para classificação de categorias e buscas.
+- Backend: Firebase (Auth para login e Realtime Database para persistência).
 
-Funcionalidades Principais:
-1. Guia de Prestadores e Comércios com filtros por bairro e categoria.
-2. Sistema de busca inteligente via IA.
-3. Cadastro multinível (Cliente, Prestador, Comércio).
-4. Página de Utilidade Pública (Emergência, Saúde, Ônibus).
-5. Seção de Doação/Social personalizável.
-6. Painel Administrativo para controle de usuários e destaques.
+Componentes e Fluxos:
+1. Home com busca inteligente (IA mapeia termos para categorias).
+2. Cadastro multinível: Cliente, Prestador (Pro) e Comércio (Business).
+3. Página de Detalhes: Bio, Destaques, Avaliações por estrelas e contato direto via WhatsApp.
+4. Central de Utilidade Pública: Números de emergência, hospitais locais e horários de ônibus (links externos).
+5. Sistema de Destaques: Ordenação prioritária baseada no campo 'isHighlighted' (Destaques no topo).
 
-Identidade Atual:
-- Cor Primária: ${configForm.primaryColor}
-- Cor de Destaque: ${configForm.accentColor}
-- Chave Pix Social: ${configForm.socialProject?.pixKey}
-
-Configuração JSON do Sistema:
+Configuração Atual em JSON:
 ${JSON.stringify(configForm, null, 2)}
 
-Instrução de Desenvolvimento:
-Use as configurações acima para gerar os arquivos App.tsx e componentes baseados no design de cartões arredondados (2.5rem), sombras suaves e tipografia Inter.`;
+Instrução Final:
+Gere o código completo do App.tsx e componentes secundários seguindo o design visual de cantos ultra-arredondados (2.5rem), sombras suaves e paleta de cores primária ${configForm.primaryColor}.`;
 
-    const adminPrompt = `PROMPT DE RECONSTRUÇÃO DO PAINEL ADMINISTRATIVO
+    const adminPrompt = `PROMPT DE RECONSTRUÇÃO DO PAINEL ADMINISTRATIVO (BACKOFFICE)
 Data de Geração: ${timestamp}
 
-Objetivo: Recriar o Painel Administrativo de Controle Total do Sistema.
+Objetivo: Recriar o Painel de Controle Total para "${configForm.appName}".
 
-Requisitos de UI/UX:
-- Layout: Dashboard com Sidebar fixa (Gray-900).
-- Estética: Botões com cantos ultra-arredondados (3xl), sombras XL, animações fade-in.
-- Abas Obrigatórias: Geral, Usuários (Gerenciar Destaques de 2/7/15/30 dias), Utilidades, Identidade, Divulgação, Campanhas e Resiliência.
+Layout e UI:
+- Sidebar fixa (Gray-900) com navegação por ícones (Geral, Usuários, Utilidades, Identidade, Marketing, Campanhas, Resiliência).
+- Tema: Design executivo com botões 2.5rem, sombras XL e animações fade-in.
 
-Funcionalidades de Gestão:
-1. Controle de Status (Ativo/Banido).
-2. Edição de dados cadastrais via modal.
-3. Gerenciamento de destaque temporal (Destaque Pro/Business).
-4. Editor de Utilidades com reordenação (Up/Down).
-5. Backup/Snapshot total via JSON.
-6. Editor de Identidade Visual (Cores e Logos em tempo real).
+Lógicas de Negócio:
+1. Usuários: Tabela com filtros (Pro/Loja/Cliente) e gerenciamento de Destaque Temporal (2, 7, 15, 30 dias).
+2. Utilidades: Editor de categorias e itens (Siren, Zap, Heart) com reordenação via ArrowUp/Down.
+3. Identidade: Editor de cores (Primary/Accent) e upload de Logo via Base64.
+4. Resiliência: Implementação de exportação/importação de Snapshot JSON total do Firebase.
+5. Marketing: Gerador dinâmico de QR Code baseado na URL de compartilhamento.
 
-JSON de Referência de Configuração:
+Referência JSON:
 ${JSON.stringify(configForm, null, 2)}`;
 
     const content = type === 'system' ? systemPrompt : adminPrompt;
@@ -268,7 +261,7 @@ ${JSON.stringify(configForm, null, 2)}`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `PROMPT_${type === 'system' ? 'SISTEMA_COMPLETO' : 'PAINEL_ADMIN'}_${configForm.appName.replace(/\s+/g, '_').toUpperCase()}.txt`;
+    a.download = `PROMPT_${type === 'system' ? 'SISTEMA_TOTAL' : 'PAINEL_ADMIN'}_${configForm.appName.replace(/\s+/g, '_').toUpperCase()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -573,7 +566,6 @@ ${JSON.stringify(configForm, null, 2)}`;
                 <p className="text-xs font-bold text-blue-800 uppercase">Gerencie aqui os números de emergência, utilidades públicas e horários de ônibus do app.</p>
               </div>
 
-              {/* Categorias de Utilidades */}
               {configForm.utilityCategories?.map((cat, catIndex) => (
                 <div key={cat.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-xl overflow-hidden">
                    <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
@@ -619,7 +611,6 @@ ${JSON.stringify(configForm, null, 2)}`;
                 </div>
               ))}
 
-              {/* Horários de Ônibus */}
               <div className="bg-white rounded-[2rem] border border-orange-100 shadow-xl overflow-hidden">
                 <div className="p-6 bg-orange-50 border-b border-orange-100 flex justify-between items-center">
                     <h3 className="text-lg font-black text-orange-800 uppercase tracking-tight flex items-center gap-2">
@@ -974,6 +965,7 @@ ${JSON.stringify(configForm, null, 2)}`;
                     </label>
                  </div>
               </div>
+              
               <div className="bg-white rounded-[2.5rem] border border-blue-100 shadow-xl overflow-hidden">
                  <div className="bg-gradient-to-r from-blue-600 to-primary p-8 text-white flex items-center gap-4">
                     <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md"><Database size={32} /></div>
