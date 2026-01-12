@@ -664,7 +664,7 @@ const PainelAdministrativo: React.FC<PainelAdministrativoProps> = ({
                        Para apagar o **login de acesso** do Google:
                        <br/><br/>
                        1. Vá no Console do Firebase.<br/>
-                       2. Menu <strong>Authentication</strong> -> <strong>Users</strong>.<br/>
+                       2. Menu <strong>Authentication</strong> {'->'} <strong>Users</strong>.<br/>
                        3. Apague o e-mail {showDeletionHelper}.
                     </p>
                  </div>
