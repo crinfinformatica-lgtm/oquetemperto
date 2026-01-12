@@ -27,7 +27,7 @@ import { ALLOWED_NEIGHBORHOODS } from './constants';
 // Firebase Imports
 import { auth, db, hasValidConfig } from './services/firebase';
 import { onAuthStateChanged, signOut, signInWithEmailAndPassword } from 'firebase/auth';
-import { ref, onValue, update, remove, get, query, limitToFirst, startAfter, orderByKey } from 'firebase/database';
+import { ref, onValue, update, remove, get, query, limitToFirst, startAfter, orderByKey, set } from 'firebase/database';
 
 const INITIAL_CONFIG: AppConfig = {
   appName: 'O Que Tem Perto?',
@@ -50,7 +50,7 @@ const INITIAL_CONFIG: AppConfig = {
     { id: 'b2', name: 'Francisco Gorski', url: 'https://www.transpiedade.com.br/linhas/16/francisco-gorski/' },
     { id: 'b3', name: 'Moradias Bom Jesus', url: 'https://transpiedade.com.br/linhas/4/moradias-bom-jesus/#dias-uteis' },
     { id: 'b4', name: 'Três Rios', url: 'https://transpiedade.com.br/linhas/9/campina/#dias-uteis' },
-    { id: 'b5', name: 'Consultar outras linhas', url: 'https://transpiedade.com.br/' }
+    { id: 'b5', name: 'Consultar outras lines', url: 'https://transpiedade.com.br/' }
   ],
   utilityCategories: [
     {
@@ -452,6 +452,32 @@ export default function App() {
     }
   };
 
+  const handleDeleteUser = async (userId: string, silent: boolean = false) => {
+    if (!db || !hasValidConfig) {
+      console.warn("Banco de dados não configurado.");
+      return;
+    }
+    if (!userId) return;
+    
+    try {
+      // Definitive Fix: Use remove() and catch Permission Denied specifically
+      const userRef = ref(db, `users/${userId}`);
+      await remove(userRef);
+      
+      console.log(`[FIREBASE] Usuário ${userId} removido.`);
+      if (!silent) alert("✅ Dados do usuário excluídos com sucesso!");
+    } catch (error: any) {
+      console.error("[FIREBASE ERROR] Erro ao excluir:", error);
+      
+      if (error.message.includes("PERMISSION_DENIED")) {
+         alert("❌ Erro de Permissão: Verifique se seu perfil tem o papel 'master' ou 'admin' atribuído no banco de dados.");
+      } else {
+         if (!silent) alert("❌ Erro técnico ao excluir: " + (error.message || "Erro de conexão."));
+      }
+      throw error;
+    }
+  };
+
   const handleShare = () => {
     const shareData = {
       title: appConfig.appName,
@@ -489,7 +515,7 @@ export default function App() {
         
         {view === 'home' && (
           <div className="flex-grow flex flex-col items-center justify-center p-4">
-             <div className="mb-8 p-4 bg-white rounded-full shadow-2xl border-4 border-gray-50">
+             <div className="mb-8 p-4 bg-white rounded-[2rem] shadow-2xl border-4 border-gray-50">
                 {appConfig.logoUrl ? (
                    <img src={appConfig.logoUrl} className="w-28 h-28 md:w-36 md:h-36 object-contain" alt="Logo" />
                 ) : (
@@ -563,7 +589,7 @@ export default function App() {
             appConfig={appConfig} 
             onUpdateConfig={(c) => update(ref(db, 'config'), c)} 
             onUpdateUser={(u) => update(ref(db, `users/${u.id}`), u)} 
-            onDeleteUser={(id) => remove(ref(db, `users/${id}`))} 
+            onDeleteUser={handleDeleteUser} 
             onLogout={handleLogout} 
             onShareApp={() => {}} 
           />
@@ -577,7 +603,7 @@ export default function App() {
         onRegisterClick={() => setView('register-selection')} 
         onProfileClick={() => setView('user-profile')} 
         onDonationClick={() => setView('donation')}
-        onAboutClick={() => setShowAbout(true)} 
+        onAboutClick={() => setShowAbout(false)} 
         onBackClick={() => setView('home')} 
         currentUser={currentUser} 
         currentView={view} 
